@@ -112,7 +112,8 @@
       transform: translateY(-1px);
     }
 
-    .btn:disabled {
+    .btn:disabled,
+    .btn-secondary:disabled {
       opacity: 0.6;
       cursor: not-allowed;
       transform: none;
@@ -121,7 +122,7 @@
     .btn {
       min-height: 56px;
       padding: 14px 18px;
-      min-width: 260px;
+      min-width: 220px;
       background: linear-gradient(135deg, var(--blue), var(--blue2));
       color: #041120;
       box-shadow: 0 10px 30px rgba(124,193,255,0.25);
@@ -253,8 +254,7 @@
     }
 
     .field input,
-    .field textarea,
-    .field select {
+    .field textarea {
       width: 100%;
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.04);
@@ -399,9 +399,9 @@
         <div>
           <h1>Shift Screenshot to Calendar</h1>
           <p>
-            Upload a work-schedule screenshot, detect dates and time ranges, turn locations like
+            Upload a schedule screenshot, detect dates and time ranges, turn locations like
             <strong>CA-Folsom</strong> into event titles like <strong>Folsom</strong>, skip
-            <strong>Not Scheduled</strong>, and generate a calendar file for Apple Calendar.
+            <strong>Not Scheduled</strong>, and open the result in Calendar.
           </p>
         </div>
         <div class="badge">GitHub Pages Ready</div>
@@ -411,6 +411,8 @@
         <input id="fileInput" type="file" accept="image/*" class="hidden" />
         <button id="pickBtn" class="btn">Choose Screenshot & Analyze</button>
         <button id="reanalyzeBtn" class="btn-secondary hidden">Analyze Edited Text</button>
+        <button id="addCalendarBtn" class="btn-secondary hidden">Add All To Calendar</button>
+        <button id="shareBtn" class="btn-secondary hidden">Share Calendar File</button>
         <a id="downloadBtn" class="download-btn hidden" download="work-shifts.ics">Download Calendar File</a>
 
         <div id="status" class="status">
@@ -489,7 +491,7 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Detected Shifts</h2>
-          <div class="panel-sub">Review before downloading the calendar file</div>
+          <div class="panel-sub">Review before opening in Calendar</div>
         </div>
       </div>
       <div class="panel-body">
@@ -512,6 +514,8 @@
     const fileInput = document.getElementById("fileInput");
     const pickBtn = document.getElementById("pickBtn");
     const reanalyzeBtn = document.getElementById("reanalyzeBtn");
+    const addCalendarBtn = document.getElementById("addCalendarBtn");
+    const shareBtn = document.getElementById("shareBtn");
     const downloadBtn = document.getElementById("downloadBtn");
     const statusEl = document.getElementById("status");
     const previewImg = document.getElementById("previewImg");
@@ -530,7 +534,8 @@
     yearInput.value = currentYear;
 
     let latestEvents = [];
-    let latestImageFile = null;
+    let latestCalendarBlob = null;
+    let latestCalendarURL = null;
 
     const monthMap = {
       jan: 1, january: 1,
@@ -608,22 +613,16 @@
       return { month, day, weekday, raw: clean };
     }
 
-    function isDateHeader(line) {
-      return parseMonthDayLine(line) !== null;
-    }
-
     function isNotScheduled(line) {
       return /not\s+scheduled/i.test(line);
     }
 
     function normalizeTownTitle(locationLine) {
       let title = locationLine.trim();
-
       title = title.replace(/^CA\s*-\s*/i, "");
       title = title.replace(/^California\s*-\s*/i, "");
       title = title.replace(/^Location\s*:\s*/i, "");
       title = title.replace(/\s+/g, " ").trim();
-
       if (!title) title = "Work Shift";
       return title;
     }
@@ -631,7 +630,7 @@
     function isLikelyLocation(line) {
       const clean = line.trim();
       if (!clean) return false;
-      if (isDateHeader(clean)) return false;
+      if (parseMonthDayLine(clean)) return false;
       if (isNotScheduled(clean)) return false;
       if (extractTimeRange(clean)) return false;
 
@@ -648,10 +647,12 @@
       if (!match) return null;
 
       let hour = parseInt(match[1], 10);
-      let minute = match[2] ? parseInt(match[2], 10) : 0;
-      let meridiem = match[3] || fallbackMeridiem;
+      const minute = match[2] ? parseInt(match[2], 10) : 0;
+      const meridiem = match[3] || fallbackMeridiem;
 
-      if (!meridiem) return { hour24: hour, minute, ambiguous: true, label: txt };
+      if (!meridiem) {
+        return { hour24: hour, minute, ambiguous: true, label: txt };
+      }
 
       if (hour === 12) hour = 0;
       if (meridiem === "PM") hour += 12;
@@ -713,7 +714,20 @@
       return String(n).padStart(2, "0");
     }
 
-    function formatICSDateLocal(date) {
+    function formatICSDateUTC(date) {
+      return (
+        date.getUTCFullYear() +
+        pad(date.getUTCMonth() + 1) +
+        pad(date.getUTCDate()) +
+        "T" +
+        pad(date.getUTCHours()) +
+        pad(date.getUTCMinutes()) +
+        pad(date.getUTCSeconds()) +
+        "Z"
+      );
+    }
+
+    function formatICSDateLocalFloating(date) {
       return (
         date.getFullYear() +
         pad(date.getMonth() + 1) +
@@ -745,9 +759,9 @@
       for (const event of events) {
         lines.push("BEGIN:VEVENT");
         lines.push(`UID:${event.uid}`);
-        lines.push(`DTSTAMP:${formatICSDateLocal(new Date())}`);
-        lines.push(`DTSTART:${formatICSDateLocal(event.start)}`);
-        lines.push(`DTEND:${formatICSDateLocal(event.end)}`);
+        lines.push(`DTSTAMP:${formatICSDateUTC(new Date())}`);
+        lines.push(`DTSTART:${formatICSDateLocalFloating(event.start)}`);
+        lines.push(`DTEND:${formatICSDateLocalFloating(event.end)}`);
         lines.push(`SUMMARY:${escapeICS(event.title)}`);
         if (event.location) lines.push(`LOCATION:${escapeICS(event.location)}`);
         if (event.description) lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
@@ -790,8 +804,8 @@
           const locationText = line;
           const timeNext = lines[i + 1] ? extractTimeRange(lines[i + 1]) : null;
           const timeSame = rangeOnThisLine;
-
           const range = timeSame || timeNext;
+
           if (!range) continue;
 
           const titleCore = normalizeTownTitle(locationText);
@@ -843,6 +857,55 @@
       return events;
     }
 
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function createCalendarBlob(events) {
+      const ics = buildICS(events);
+      return new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    }
+
+    function updateCalendarActions(events) {
+      if (latestCalendarURL) {
+        URL.revokeObjectURL(latestCalendarURL);
+        latestCalendarURL = null;
+      }
+
+      if (!events.length) {
+        addCalendarBtn.classList.add("hidden");
+        downloadBtn.classList.add("hidden");
+        shareBtn.classList.add("hidden");
+        latestCalendarBlob = null;
+        return;
+      }
+
+      latestCalendarBlob = createCalendarBlob(events);
+      latestCalendarURL = URL.createObjectURL(latestCalendarBlob);
+
+      downloadBtn.href = latestCalendarURL;
+      downloadBtn.classList.remove("hidden");
+      addCalendarBtn.classList.remove("hidden");
+
+      if (navigator.canShare && latestCalendarBlob) {
+        try {
+          const file = new File([latestCalendarBlob], "work-shifts.ics", { type: "text/calendar" });
+          if (navigator.canShare({ files: [file] })) {
+            shareBtn.classList.remove("hidden");
+          } else {
+            shareBtn.classList.add("hidden");
+          }
+        } catch {
+          shareBtn.classList.add("hidden");
+        }
+      } else {
+        shareBtn.classList.add("hidden");
+      }
+    }
+
     function renderEvents(events) {
       latestEvents = events;
       eventsList.innerHTML = "";
@@ -851,7 +914,7 @@
 
       if (!events.length) {
         emptyResults.classList.remove("hidden");
-        downloadBtn.classList.add("hidden");
+        updateCalendarActions(events);
         return;
       }
 
@@ -878,18 +941,7 @@
         eventsList.appendChild(card);
       });
 
-      const ics = buildICS(events);
-      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      downloadBtn.href = url;
-      downloadBtn.classList.remove("hidden");
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+      updateCalendarActions(events);
     }
 
     async function preprocessImage(file) {
@@ -899,7 +951,6 @@
 
       canvas.width = bitmap.width;
       canvas.height = bitmap.height;
-
       ctx.drawImage(bitmap, 0, 0);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -949,15 +1000,51 @@
       }
     }
 
-    pickBtn.addEventListener("click", () => fileInput.click());
+    async function openCalendarDirectly() {
+      if (!latestEvents.length || !latestCalendarURL) {
+        alert("No events detected yet.");
+        return;
+      }
 
+      // Best effort direct open for iPhone/iPad/Mac browsers.
+      // If the browser blocks it, the user still has Share and Download.
+      const opened = window.open(latestCalendarURL, "_blank");
+
+      if (!opened) {
+        window.location.href = latestCalendarURL;
+      }
+
+      setStatus("Tried opening Calendar file. If it does not open, use Share or Download.", "warn");
+    }
+
+    async function shareCalendarFile() {
+      if (!latestCalendarBlob) {
+        alert("No calendar file available yet.");
+        return;
+      }
+
+      try {
+        const file = new File([latestCalendarBlob], "work-shifts.ics", { type: "text/calendar" });
+        await navigator.share({
+          title: "Work Shifts",
+          text: "Import these shifts into Calendar",
+          files: [file]
+        });
+      } catch (err) {
+        console.error(err);
+        setStatus("Share was canceled or not supported. Use Add All To Calendar or Download.", "warn");
+      }
+    }
+
+    pickBtn.addEventListener("click", () => fileInput.click());
     reanalyzeBtn.addEventListener("click", analyzeCurrentText);
+    addCalendarBtn.addEventListener("click", openCalendarDirectly);
+    shareBtn.addEventListener("click", shareCalendarFile);
 
     fileInput.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      latestImageFile = file;
       previewImg.src = URL.createObjectURL(file);
       previewImg.classList.remove("hidden");
       emptyPreview.classList.add("hidden");
