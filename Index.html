@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shift Screenshot to Calendar</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --bg2: #111a30;
+      --panel: rgba(16, 24, 44, 0.9);
+      --panel-2: rgba(10, 16, 30, 0.95);
+      --text: #eef4ff;
+      --muted: #9cb0d6;
+      --line: rgba(255,255,255,0.08);
+      --blue: #7cc1ff;
+      --blue2: #a6d4ff;
+      --purple: #9e8cff;
+      --green: #2ed08b;
+      --yellow: #f3b64f;
+      --red: #ff6f7d;
+      --shadow: 0 18px 50px rgba(0,0,0,0.35);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124,193,255,0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(158,140,255,0.14), transparent 26%),
+        linear-gradient(180deg, #08101d 0%, #0b1120 100%);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 16px 40px;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 24px;
+      background: linear-gradient(135deg, rgba(124,193,255,0.10), rgba(158,140,255,0.08));
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.03;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.55;
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.05);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .btn,
+    .btn-secondary,
+    .download-btn {
+      appearance: none;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover,
+    .btn-secondary:hover,
+    .download-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn {
+      min-height: 56px;
+      padding: 14px 18px;
+      min-width: 260px;
+      background: linear-gradient(135deg, var(--blue), var(--blue2));
+      color: #041120;
+      box-shadow: 0 10px 30px rgba(124,193,255,0.25);
+    }
+
+    .btn-secondary,
+    .download-btn {
+      min-height: 48px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9fb1d0;
+      box-shadow: 0 0 0 6px rgba(159,177,208,0.10);
+    }
+
+    .status.good .status-dot { background: var(--green); box-shadow: 0 0 0 6px rgba(46,208,139,0.10); }
+    .status.warn .status-dot { background: var(--yellow); box-shadow: 0 0 0 6px rgba(243,182,79,0.10); }
+    .status.bad .status-dot { background: var(--red); box-shadow: 0 0 0 6px rgba(255,111,125,0.10); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 18px 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .panel-sub {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .preview-wrap {
+      min-height: 320px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .preview-wrap img {
+      width: 100%;
+      max-height: 700px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 30px;
+      line-height: 1.5;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .result-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-weight: 700;
+    }
+
+    .events {
+      display: grid;
+      gap: 12px;
+    }
+
+    .event-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .event-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .event-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .event-date {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.83rem;
+      font-weight: 700;
+      background: rgba(124,193,255,0.10);
+      border: 1px solid rgba(124,193,255,0.20);
+      color: #dcebff;
+    }
+
+    .chip.warn {
+      background: rgba(243,182,79,0.10);
+      border-color: rgba(243,182,79,0.22);
+      color: #ffe3ae;
+    }
+
+    .chip.good {
+      background: rgba(46,208,139,0.10);
+      border-color: rgba(46,208,139,0.22);
+      color: #c9ffe8;
+    }
+
+    .muted-box {
+      border: 1px dashed var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      color: var(--muted);
+      line-height: 1.5;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .ocr-box {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #09101d;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>Shift Screenshot to Calendar</h1>
+          <p>
+            Upload a work-schedule screenshot, detect dates and time ranges, turn locations like
+            <strong>CA-Folsom</strong> into event titles like <strong>Folsom</strong>, skip
+            <strong>Not Scheduled</strong>, and generate a calendar file for Apple Calendar.
+          </p>
+        </div>
+        <div class="badge">GitHub Pages Ready</div>
+      </div>
+
+      <div class="toolbar">
+        <input id="fileInput" type="file" accept="image/*" class="hidden" />
+        <button id="pickBtn" class="btn">Choose Screenshot & Analyze</button>
+        <button id="reanalyzeBtn" class="btn-secondary hidden">Analyze Edited Text</button>
+        <a id="downloadBtn" class="download-btn hidden" download="work-shifts.ics">Download Calendar File</a>
+
+        <div id="status" class="status">
+          <span class="status-dot"></span>
+          <span>Waiting for screenshot</span>
+        </div>
+      </div>
+
+      <div class="footer">
+        Best match for screenshots like:
+        <strong>Mar 15 Sun</strong> → <strong>CA-Folsom</strong> → <strong>11:30AM - 6:15PM</strong>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Screenshot</h2>
+            <div class="panel-sub">Preview of the uploaded image</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="previewWrap" class="preview-wrap">
+            <div id="emptyPreview" class="empty">
+              No screenshot loaded yet.<br />
+              Choose an image to begin.
+            </div>
+            <img id="previewImg" class="hidden" alt="Uploaded schedule screenshot" />
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Parser Settings</h2>
+            <div class="panel-sub">Adjust year and event details before export</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field">
+              <label for="yearInput">Calendar year</label>
+              <input id="yearInput" type="number" />
+            </div>
+            <div class="field">
+              <label for="defaultDuration">Fallback duration (hours)</label>
+              <input id="defaultDuration" type="number" min="1" max="24" step="0.5" value="8" />
+            </div>
+            <div class="field">
+              <label for="titlePrefix">Optional title prefix</label>
+              <input id="titlePrefix" type="text" placeholder="Example: Work - " />
+            </div>
+            <div class="field">
+              <label for="calendarLocation">Optional location text</label>
+              <input id="calendarLocation" type="text" placeholder="Example: Work Site" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="ocrText">Detected text (editable)</label>
+            <textarea id="ocrText" placeholder="OCR output will appear here..."></textarea>
+          </div>
+
+          <div class="note">
+            This parser is tuned for screenshots that show a date header, then a location, then a time range.
+            It understands month abbreviations like <strong>Mar</strong>, weekdays like <strong>Sun</strong>,
+            and lines like <strong>11:30AM - 6:15PM</strong>.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top: 18px;">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Detected Shifts</h2>
+          <div class="panel-sub">Review before downloading the calendar file</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="result-head">
+          <div id="countPill" class="result-count">0 shifts found</div>
+        </div>
+
+        <div id="eventsList" class="events"></div>
+
+        <div id="emptyResults" class="muted-box">
+          No shifts parsed yet. Upload a screenshot first.
+        </div>
+
+        <div id="ocrBox" class="ocr-box hidden"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const pickBtn = document.getElementById("pickBtn");
+    const reanalyzeBtn = document.getElementById("reanalyzeBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const previewImg = document.getElementById("previewImg");
+    const emptyPreview = document.getElementById("emptyPreview");
+    const yearInput = document.getElementById("yearInput");
+    const defaultDuration = document.getElementById("defaultDuration");
+    const titlePrefix = document.getElementById("titlePrefix");
+    const calendarLocation = document.getElementById("calendarLocation");
+    const ocrText = document.getElementById("ocrText");
+    const eventsList = document.getElementById("eventsList");
+    const emptyResults = document.getElementById("emptyResults");
+    const countPill = document.getElementById("countPill");
+    const ocrBox = document.getElementById("ocrBox");
+
+    const currentYear = new Date().getFullYear();
+    yearInput.value = currentYear;
+
+    let latestEvents = [];
+    let latestImageFile = null;
+
+    const monthMap = {
+      jan: 1, january: 1,
+      feb: 2, february: 2,
+      mar: 3, march: 3,
+      apr: 4, april: 4,
+      may: 5,
+      jun: 6, june: 6,
+      jul: 7, july: 7,
+      aug: 8, august: 8,
+      sep: 9, sept: 9, september: 9,
+      oct: 10, october: 10,
+      nov: 11, november: 11,
+      dec: 12, december: 12
+    };
+
+    const weekdayWords = new Set([
+      "sun", "sunday",
+      "mon", "monday",
+      "tue", "tues", "tuesday",
+      "wed", "wednesday",
+      "thu", "thur", "thurs", "thursday",
+      "fri", "friday",
+      "sat", "saturday"
+    ]);
+
+    function setStatus(message, type = "") {
+      statusEl.className = "status";
+      if (type) statusEl.classList.add(type);
+      statusEl.innerHTML = `<span class="status-dot"></span><span>${message}</span>`;
+    }
+
+    function normalizeText(text) {
+      return text
+        .replace(/[|]/g, "I")
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .replace(/[—–]/g, "-")
+        .replace(/\r/g, "\n")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function parseMonthDayLine(line) {
+      const clean = line
+        .replace(/[,]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const parts = clean.split(" ");
+      if (parts.length < 2) return null;
+
+      let month = null;
+      let day = null;
+      let weekday = null;
+
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i].toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!month && monthMap[p]) {
+          month = monthMap[p];
+          if (parts[i + 1]) {
+            const maybeDay = parts[i + 1].replace(/\D/g, "");
+            if (maybeDay) day = parseInt(maybeDay, 10);
+          }
+          if (parts[i + 2]) {
+            const w = parts[i + 2].toLowerCase().replace(/[^a-z]/g, "");
+            if (weekdayWords.has(w)) weekday = w;
+          }
+          break;
+        }
+      }
+
+      if (!month || !day || day < 1 || day > 31) return null;
+      return { month, day, weekday, raw: clean };
+    }
+
+    function isDateHeader(line) {
+      return parseMonthDayLine(line) !== null;
+    }
+
+    function isNotScheduled(line) {
+      return /not\s+scheduled/i.test(line);
+    }
+
+    function normalizeTownTitle(locationLine) {
+      let title = locationLine.trim();
+
+      title = title.replace(/^CA\s*-\s*/i, "");
+      title = title.replace(/^California\s*-\s*/i, "");
+      title = title.replace(/^Location\s*:\s*/i, "");
+      title = title.replace(/\s+/g, " ").trim();
+
+      if (!title) title = "Work Shift";
+      return title;
+    }
+
+    function isLikelyLocation(line) {
+      const clean = line.trim();
+      if (!clean) return false;
+      if (isDateHeader(clean)) return false;
+      if (isNotScheduled(clean)) return false;
+      if (extractTimeRange(clean)) return false;
+
+      return (
+        /^CA\s*-/i.test(clean) ||
+        /^[A-Za-z]{2,}\s*-\s*[A-Za-z]/.test(clean) ||
+        /^[A-Za-z][A-Za-z\s.'-]{2,}$/.test(clean)
+      );
+    }
+
+    function parseTimePart(raw, fallbackMeridiem = null) {
+      const txt = raw.trim().toUpperCase().replace(/\s+/g, "");
+      const match = txt.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!match) return null;
+
+      let hour = parseInt(match[1], 10);
+      let minute = match[2] ? parseInt(match[2], 10) : 0;
+      let meridiem = match[3] || fallbackMeridiem;
+
+      if (!meridiem) return { hour24: hour, minute, ambiguous: true, label: txt };
+
+      if (hour === 12) hour = 0;
+      if (meridiem === "PM") hour += 12;
+
+      return {
+        hour24: hour,
+        minute,
+        ambiguous: false,
+        label: txt
+      };
+    }
+
+    function extractTimeRange(line) {
+      const clean = line
+        .replace(/\s+/g, " ")
+        .replace(/to/gi, "-")
+        .trim();
+
+      const match = clean.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)[ ]*-[ ]*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
+      if (!match) return null;
+
+      let startRaw = match[1];
+      let endRaw = match[2];
+
+      const startHasMer = /(AM|PM)/i.test(startRaw);
+      const endHasMer = /(AM|PM)/i.test(endRaw);
+
+      const endMeridiem = (endRaw.match(/(AM|PM)/i) || [])[1]?.toUpperCase() || null;
+      const startMeridiem = (startRaw.match(/(AM|PM)/i) || [])[1]?.toUpperCase() || null;
+
+      const parsedStart = parseTimePart(startRaw, startHasMer ? null : endMeridiem);
+      const parsedEnd = parseTimePart(endRaw, endHasMer ? null : startMeridiem);
+
+      if (!parsedStart || !parsedEnd) return null;
+
+      return {
+        start: parsedStart,
+        end: parsedEnd,
+        raw: `${startRaw} - ${endRaw}`
+      };
+    }
+
+    function toDateParts(year, month, day, timeObj) {
+      return new Date(year, month - 1, day, timeObj.hour24, timeObj.minute, 0, 0);
+    }
+
+    function formatPrettyDate(date) {
+      return date.toLocaleString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function formatICSDateLocal(date) {
+      return (
+        date.getFullYear() +
+        pad(date.getMonth() + 1) +
+        pad(date.getDate()) +
+        "T" +
+        pad(date.getHours()) +
+        pad(date.getMinutes()) +
+        pad(date.getSeconds())
+      );
+    }
+
+    function escapeICS(str) {
+      return String(str || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/\n/g, "\\n")
+        .replace(/,/g, "\\,")
+        .replace(/;/g, "\\;");
+    }
+
+    function buildICS(events) {
+      const lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Shift Screenshot Parser//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH"
+      ];
+
+      for (const event of events) {
+        lines.push("BEGIN:VEVENT");
+        lines.push(`UID:${event.uid}`);
+        lines.push(`DTSTAMP:${formatICSDateLocal(new Date())}`);
+        lines.push(`DTSTART:${formatICSDateLocal(event.start)}`);
+        lines.push(`DTEND:${formatICSDateLocal(event.end)}`);
+        lines.push(`SUMMARY:${escapeICS(event.title)}`);
+        if (event.location) lines.push(`LOCATION:${escapeICS(event.location)}`);
+        if (event.description) lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
+        lines.push("END:VEVENT");
+      }
+
+      lines.push("END:VCALENDAR");
+      return lines.join("\r\n");
+    }
+
+    function parseScheduleText(text) {
+      const lines = normalizeText(text)
+        .split("\n")
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      const year = parseInt(yearInput.value, 10) || currentYear;
+      const fallbackHours = parseFloat(defaultDuration.value) || 8;
+      const prefix = titlePrefix.value || "";
+      const locationField = calendarLocation.value || "";
+
+      const events = [];
+      let currentDate = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        const dateInfo = parseMonthDayLine(line);
+        if (dateInfo) {
+          currentDate = dateInfo;
+          continue;
+        }
+
+        if (!currentDate) continue;
+        if (isNotScheduled(line)) continue;
+
+        const rangeOnThisLine = extractTimeRange(line);
+
+        if (isLikelyLocation(line)) {
+          const locationText = line;
+          const timeNext = lines[i + 1] ? extractTimeRange(lines[i + 1]) : null;
+          const timeSame = rangeOnThisLine;
+
+          const range = timeSame || timeNext;
+          if (!range) continue;
+
+          const titleCore = normalizeTownTitle(locationText);
+          const startDate = toDateParts(year, currentDate.month, currentDate.day, range.start);
+
+          let endDate;
+          if (range.end) {
+            endDate = toDateParts(year, currentDate.month, currentDate.day, range.end);
+            if (endDate <= startDate) {
+              endDate = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
+            }
+          } else {
+            endDate = new Date(startDate.getTime() + fallbackHours * 60 * 60 * 1000);
+          }
+
+          events.push({
+            uid: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}@shift-parser`,
+            title: `${prefix}${titleCore}`.trim(),
+            start: startDate,
+            end: endDate,
+            location: locationField || titleCore,
+            description: `Imported from screenshot. Original date: ${currentDate.raw}. Original time: ${range.raw}`
+          });
+
+          if (!timeSame && timeNext) i += 1;
+          continue;
+        }
+
+        if (rangeOnThisLine) {
+          const titleCore = "Work Shift";
+          const startDate = toDateParts(year, currentDate.month, currentDate.day, rangeOnThisLine.start);
+          let endDate = toDateParts(year, currentDate.month, currentDate.day, rangeOnThisLine.end);
+
+          if (endDate <= startDate) {
+            endDate = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
+          }
+
+          events.push({
+            uid: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}@shift-parser`,
+            title: `${prefix}${titleCore}`.trim(),
+            start: startDate,
+            end: endDate,
+            location: locationField || "",
+            description: `Imported from screenshot. Original date: ${currentDate.raw}. Original time: ${rangeOnThisLine.raw}`
+          });
+        }
+      }
+
+      return events;
+    }
+
+    function renderEvents(events) {
+      latestEvents = events;
+      eventsList.innerHTML = "";
+
+      countPill.textContent = `${events.length} shift${events.length === 1 ? "" : "s"} found`;
+
+      if (!events.length) {
+        emptyResults.classList.remove("hidden");
+        downloadBtn.classList.add("hidden");
+        return;
+      }
+
+      emptyResults.classList.add("hidden");
+
+      events.forEach(event => {
+        const card = document.createElement("div");
+        card.className = "event-card";
+
+        card.innerHTML = `
+          <div class="event-top">
+            <div>
+              <div class="event-title">${escapeHtml(event.title)}</div>
+              <div class="event-date">${escapeHtml(formatPrettyDate(event.start))} → ${escapeHtml(formatPrettyDate(event.end))}</div>
+            </div>
+          </div>
+          <div class="chips">
+            <div class="chip good">${escapeHtml(event.location || "No location")}</div>
+            <div class="chip">${escapeHtml(event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</div>
+            <div class="chip">${escapeHtml(event.end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</div>
+          </div>
+        `;
+
+        eventsList.appendChild(card);
+      });
+
+      const ics = buildICS(events);
+      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      downloadBtn.href = url;
+      downloadBtn.classList.remove("hidden");
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    async function preprocessImage(file) {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+
+      ctx.drawImage(bitmap, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const boosted = avg > 190 ? 255 : avg > 150 ? 220 : avg > 110 ? 150 : 40;
+        data[i] = boosted;
+        data[i + 1] = boosted;
+        data[i + 2] = boosted;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+
+    async function runOCR(file) {
+      setStatus("Preparing image...", "warn");
+      const canvas = await preprocessImage(file);
+
+      setStatus("Reading screenshot text...", "warn");
+      const result = await Tesseract.recognize(canvas, "eng", {
+        logger: m => {
+          if (m.status === "recognizing text") {
+            const pct = Math.round((m.progress || 0) * 100);
+            setStatus(`Reading screenshot text... ${pct}%`, "warn");
+          }
+        }
+      });
+
+      return normalizeText(result.data.text || "");
+    }
+
+    async function analyzeCurrentText() {
+      const text = ocrText.value.trim();
+      ocrBox.textContent = text || "No OCR text available.";
+      ocrBox.classList.remove("hidden");
+
+      const events = parseScheduleText(text);
+      renderEvents(events);
+
+      if (events.length) {
+        setStatus(`Ready: ${events.length} shift${events.length === 1 ? "" : "s"} parsed`, "good");
+      } else {
+        setStatus("No shifts found. Edit the detected text and try again.", "bad");
+      }
+    }
+
+    pickBtn.addEventListener("click", () => fileInput.click());
+
+    reanalyzeBtn.addEventListener("click", analyzeCurrentText);
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      latestImageFile = file;
+      previewImg.src = URL.createObjectURL(file);
+      previewImg.classList.remove("hidden");
+      emptyPreview.classList.add("hidden");
+      reanalyzeBtn.classList.remove("hidden");
+
+      try {
+        const text = await runOCR(file);
+        ocrText.value = text;
+        await analyzeCurrentText();
+      } catch (err) {
+        console.error(err);
+        setStatus("OCR failed. Try a clearer screenshot.", "bad");
+      }
+    });
+  </script>
+</body>
+</html>
