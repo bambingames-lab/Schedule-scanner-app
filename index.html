@@ -8,20 +8,22 @@
 
   <style>
     :root{
-      --bg:#f3f4f6;
-      --bg2:#eef7f8;
+      --bg:#eef4ff;
+      --bg2:#f8fbff;
       --card:#ffffff;
-      --text:#111827;
-      --muted:#6b7280;
-      --line:#e5e7eb;
-      --primary:#0f9d92;
-      --primary-dark:#0a7f76;
-      --primary-soft:#ecfeff;
-      --danger:#ef4444;
-      --danger-soft:#fff1f2;
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:#dbeafe;
+      --primary:#2563eb;
+      --primary-dark:#1d4ed8;
+      --primary-soft:#eff6ff;
+      --primary-soft-2:#dbeafe;
+      --success:#059669;
       --warning:#b45309;
-      --shadow:0 10px 30px rgba(15,23,42,.08);
-      --radius:22px;
+      --danger:#dc2626;
+      --danger-soft:#fef2f2;
+      --shadow:0 16px 40px rgba(37,99,235,.10);
+      --radius:24px;
     }
 
     *{box-sizing:border-box}
@@ -29,9 +31,11 @@
     html,body{
       margin:0;
       padding:0;
-      background:linear-gradient(180deg,var(--bg2),var(--bg));
-      color:var(--text);
       font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(96,165,250,.16), transparent 28%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
     }
 
     body{
@@ -39,32 +43,93 @@
     }
 
     .app{
-      max-width:760px;
+      max-width:780px;
       margin:0 auto;
     }
 
     .hero{
-      background:linear-gradient(135deg,#0f9d92,#20b5a8 55%,#4cc9f0);
+      position:relative;
+      overflow:hidden;
+      background:linear-gradient(135deg,#1d4ed8 0%, #2563eb 45%, #60a5fa 100%);
       color:#fff;
-      border-radius:28px;
-      padding:22px 18px;
+      border-radius:30px;
+      padding:22px 18px 18px;
       box-shadow:var(--shadow);
       margin-bottom:16px;
     }
 
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -30px -40px auto;
+      width:180px;
+      height:180px;
+      border-radius:999px;
+      background:rgba(255,255,255,.10);
+      filter:blur(2px);
+    }
+
     .hero h1{
-      margin:0 0 8px;
-      font-size:28px;
-      line-height:1.05;
+      margin:0;
+      font-size:30px;
+      line-height:1.02;
       letter-spacing:-.03em;
-      font-weight:800;
+      font-weight:850;
     }
 
     .hero p{
-      margin:0;
-      line-height:1.45;
+      margin:10px 0 0;
       font-size:15px;
-      opacity:.96;
+      line-height:1.45;
+      max-width:620px;
+      opacity:.97;
+    }
+
+    .top-actions{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+
+    .quick-action{
+      border:none;
+      border-radius:18px;
+      min-height:82px;
+      padding:14px 12px;
+      text-align:left;
+      font-weight:800;
+      font-size:14px;
+      cursor:pointer;
+      color:#fff;
+      background:rgba(255,255,255,.14);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
+      transition:transform .08s ease, background .2s ease;
+    }
+
+    .quick-action:active{
+      transform:scale(.985);
+    }
+
+    .quick-action:hover{
+      background:rgba(255,255,255,.20);
+    }
+
+    .quick-action .icon{
+      display:block;
+      font-size:22px;
+      margin-bottom:8px;
+    }
+
+    .quick-action .sub{
+      display:block;
+      font-size:12px;
+      font-weight:600;
+      opacity:.88;
+      margin-top:4px;
+      line-height:1.25;
     }
 
     .card{
@@ -72,14 +137,14 @@
       border-radius:var(--radius);
       padding:18px;
       box-shadow:var(--shadow);
-      border:1px solid rgba(255,255,255,.7);
+      border:1px solid rgba(219,234,254,.9);
       margin-bottom:16px;
     }
 
     .title{
       margin:0 0 8px;
       font-size:19px;
-      font-weight:800;
+      font-weight:850;
       letter-spacing:-.02em;
     }
 
@@ -101,6 +166,10 @@
       flex-wrap:wrap;
     }
 
+    .two-col{
+      grid-template-columns:1fr;
+    }
+
     button,
     .button-link{
       appearance:none;
@@ -117,7 +186,7 @@
       align-items:center;
       justify-content:center;
       gap:8px;
-      transition:transform .08s ease, opacity .2s ease, background .2s ease;
+      transition:transform .08s ease, background .2s ease, opacity .2s ease;
     }
 
     button:active,
@@ -127,7 +196,7 @@
 
     .primary{
       background:var(--primary);
-      color:white;
+      color:#fff;
       width:100%;
     }
 
@@ -136,23 +205,23 @@
     }
 
     .secondary{
-      background:#f8fafc;
-      color:#111827;
+      background:#fff;
+      color:var(--text);
       width:100%;
       border:1px solid var(--line);
     }
 
     .ghost{
       background:var(--primary-soft);
-      color:#0f766e;
-      border:1px solid #b8ece8;
+      color:var(--primary-dark);
       width:100%;
+      border:1px solid var(--primary-soft-2);
     }
 
     .danger{
       background:var(--danger-soft);
-      color:#b91c1c;
-      border:1px solid #fecdd3;
+      color:var(--danger);
+      border:1px solid #fecaca;
       width:100%;
     }
 
@@ -169,12 +238,12 @@
 
     textarea{
       resize:vertical;
-      min-height:130px;
+      min-height:140px;
     }
 
     input:focus, textarea:focus, select:focus{
-      border-color:#7dd3fc;
-      box-shadow:0 0 0 4px rgba(56,189,248,.15);
+      border-color:#93c5fd;
+      box-shadow:0 0 0 4px rgba(59,130,246,.14);
     }
 
     label{
@@ -193,9 +262,9 @@
       font-weight:700;
     }
 
-    .status.good{color:#047857}
+    .status.good{color:var(--success)}
     .status.warn{color:var(--warning)}
-    .status.bad{color:#b91c1c}
+    .status.bad{color:var(--danger)}
 
     .preview-wrap{
       display:none;
@@ -212,6 +281,12 @@
       height:auto;
     }
 
+    .toolbar{
+      display:grid;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
     .event-list{
       display:grid;
       gap:14px;
@@ -219,9 +294,9 @@
 
     .event-card{
       border:1px solid var(--line);
-      border-radius:20px;
+      border-radius:22px;
       padding:14px;
-      background:linear-gradient(180deg,#fff,#fafafa);
+      background:linear-gradient(180deg,#fff,#f8fbff);
     }
 
     .event-top{
@@ -236,7 +311,7 @@
       margin:0;
       font-size:19px;
       line-height:1.15;
-      font-weight:800;
+      font-weight:850;
       letter-spacing:-.02em;
     }
 
@@ -246,9 +321,9 @@
       padding:7px 10px;
       font-size:12px;
       font-weight:800;
-      color:#0f766e;
-      background:#ecfeff;
-      border:1px solid #b8ece8;
+      color:var(--primary-dark);
+      background:var(--primary-soft);
+      border:1px solid var(--primary-soft-2);
     }
 
     .meta{
@@ -260,7 +335,7 @@
 
     .meta-box{
       border:1px solid var(--line);
-      background:#f9fafb;
+      background:#f8fbff;
       border-radius:14px;
       padding:10px 12px;
     }
@@ -327,10 +402,21 @@
       margin-top:10px;
     }
 
+    @media (max-width:560px){
+      .top-actions{
+        grid-template-columns:1fr;
+      }
+    }
+
     @media (min-width:640px){
       .two-col{
         grid-template-columns:1fr 1fr;
       }
+
+      .toolbar{
+        grid-template-columns:1fr 1fr;
+      }
+
       .editor{
         grid-template-columns:1fr 1fr;
       }
@@ -341,42 +427,60 @@
   <div class="app">
     <div class="hero">
       <h1>Shift Calendar</h1>
-      <p>Upload a shift screenshot, review detected schedule items, then tap once to add each shift or your full schedule to Calendar.</p>
+      <p>Scan your schedule, review the shifts, and add them to Calendar with a cleaner one-tap workflow.</p>
+
+      <div class="top-actions">
+        <button class="quick-action" onclick="openCamera()">
+          <span class="icon">📷</span>
+          Take Photo
+          <span class="sub">Capture your schedule live</span>
+        </button>
+
+        <button class="quick-action" onclick="openFile()">
+          <span class="icon">🖼️</span>
+          Upload Image
+          <span class="sub">Choose a screenshot</span>
+        </button>
+
+        <button class="quick-action" onclick="focusText()">
+          <span class="icon">✏️</span>
+          Paste Text
+          <span class="sub">Manual OCR input</span>
+        </button>
+      </div>
+
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="imageInput" accept="image/*" style="display:none">
     </div>
 
     <div class="card">
-      <h2 class="title">1. Upload Schedule</h2>
-      <p class="note">Designed for screenshots like Shiftlab schedules with date headers, location names, and time ranges.</p>
-
-      <div class="grid two-col">
-        <button class="primary" onclick="openFile()">Upload & Scan Screenshot</button>
-        <button class="secondary" onclick="loadDemo()">Load Demo Data</button>
-      </div>
-
-      <input type="file" id="imageInput" accept="image/*" style="display:none">
+      <h2 class="title">Preview</h2>
+      <p class="note">After you take a photo or upload an image, the processed preview will appear here.</p>
 
       <div id="previewWrap" class="preview-wrap">
         <canvas id="previewCanvas" class="preview"></canvas>
       </div>
 
       <div id="status" class="status"></div>
-      <div class="tiny">This works on GitHub Pages because everything runs in the browser.</div>
+      <div class="tiny">Built to work on GitHub Pages with no backend required.</div>
     </div>
 
     <div class="card">
-      <h2 class="title">2. OCR Text</h2>
-      <p class="note">Edit anything the scanner read incorrectly, then tap re-analyze.</p>
+      <h2 class="title">OCR Text</h2>
+      <p class="note">Fix any misread text here, then tap re-analyze.</p>
+
       <textarea id="rawTextBox" placeholder="Detected text will appear here..."></textarea>
+
       <div class="row" style="margin-top:10px">
         <button class="secondary" onclick="reparse()">Re-Analyze Text</button>
       </div>
     </div>
 
     <div class="card">
-      <h2 class="title">3. Detected Shifts</h2>
-      <p class="note">Each shift becomes a single calendar event with the actual date, not a repeating weekly event.</p>
+      <h2 class="title">Detected Shifts</h2>
+      <p class="note">Each shift is exported as a real one-time calendar event.</p>
 
-      <div class="grid two-col" style="margin-bottom:12px">
+      <div class="toolbar">
         <button class="primary" onclick="downloadAllICS()">Add All to Calendar</button>
         <button class="ghost" onclick="copySummary()">Copy Summary</button>
       </div>
@@ -386,8 +490,9 @@
 
     <div class="card">
       <h2 class="title">Recent Scans</h2>
-      <p class="note">Saved locally on your device.</p>
+      <p class="note">Saved locally on this device.</p>
       <div id="history"></div>
+
       <div class="row" style="margin-top:10px">
         <button class="danger" onclick="clearHistory()">Clear History</button>
       </div>
@@ -420,31 +525,48 @@
       el.textContent = message || "";
     }
 
+    function openCamera(){
+      document.getElementById("cameraInput").click();
+    }
+
     function openFile(){
       document.getElementById("imageInput").click();
     }
 
-    document.getElementById("imageInput").addEventListener("change", async function(){
+    function focusText(){
+      const box = document.getElementById("rawTextBox");
+      box.focus();
+      window.scrollTo({
+        top: box.getBoundingClientRect().top + window.scrollY - 40,
+        behavior: "smooth"
+      });
+    }
+
+    document.getElementById("cameraInput").addEventListener("change", handleImage);
+    document.getElementById("imageInput").addEventListener("change", handleImage);
+
+    async function handleImage(){
       const file = this.files[0];
       if(!file) return;
 
       try{
-        setStatus("Preparing screenshot...", "warn");
+        setStatus("Preparing image...", "warn");
+
         const processedCanvas = await preprocessImage(file);
 
         const previewWrap = document.getElementById("previewWrap");
-        const previewCanvas = document.getElementById("previewCanvas");
-        previewCanvas.width = processedCanvas.width;
-        previewCanvas.height = processedCanvas.height;
-        previewCanvas.getContext("2d").drawImage(processedCanvas, 0, 0);
+        const preview = document.getElementById("previewCanvas");
+        preview.width = processedCanvas.width;
+        preview.height = processedCanvas.height;
+        preview.getContext("2d").drawImage(processedCanvas, 0, 0);
         previewWrap.style.display = "block";
 
-        setStatus("Reading screenshot...", "warn");
+        setStatus("Reading image...", "warn");
 
         const result = await Tesseract.recognize(processedCanvas, "eng", {
           logger: m => {
             if(m.status === "recognizing text"){
-              setStatus("Reading screenshot... " + Math.round((m.progress || 0) * 100) + "%", "warn");
+              setStatus("Reading image... " + Math.round((m.progress || 0) * 100) + "%", "warn");
             }
           }
         });
@@ -452,13 +574,15 @@
         const text = postProcessOCR(result?.data?.text || "");
         document.getElementById("rawTextBox").value = text;
         processText(text, true);
-        this.value = "";
+
       }catch(err){
         console.error(err);
         setStatus("Could not analyze that image.", "bad");
         alert("There was a problem reading the image.");
       }
-    });
+
+      this.value = "";
+    }
 
     async function preprocessImage(file){
       const img = await loadImage(file);
@@ -475,17 +599,17 @@
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      for(let i=0;i<data.length;i+=4){
+      for(let i = 0; i < data.length; i += 4){
         const r = data[i];
-        const g = data[i+1];
-        const b = data[i+2];
+        const g = data[i + 1];
+        const b = data[i + 2];
 
-        let gray = 0.299*r + 0.587*g + 0.114*b;
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
         gray = gray > 188 ? 255 : gray < 120 ? 0 : 235;
 
         data[i] = gray;
-        data[i+1] = gray;
-        data[i+2] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
       }
 
       ctx.putImageData(imageData, 0, 0);
@@ -526,29 +650,6 @@
         .replace(/\bNot\s+Schedu1ed\b/gi, "Not Scheduled")
         .replace(/\bSchedu1ed\b/gi, "Scheduled")
         .replace(/[ ]{2,}/g, " ");
-    }
-
-    function loadDemo(){
-      const demo = `Mar 23 Mon
-CA-Folsom
-9:30AM - 4:00PM
-
-Mar 24 Tue
-Not Scheduled
-
-Mar 25 Wed
-CA-Cameron Park
-8:30AM - 4:00PM
-
-Mar 26 Thu
-CA-Cameron Park
-8:30AM - 4:00PM
-
-Mar 27 Fri
-CA-Cameron Park
-1:30PM - 7:15PM`;
-      document.getElementById("rawTextBox").value = demo;
-      processText(demo, false);
     }
 
     function reparse(){
@@ -604,13 +705,7 @@ CA-Cameron Park
         const joined = block.lines.join(" | ");
         if(/not scheduled/i.test(joined)) return;
 
-        const titleLine = block.lines.find(line =>
-          !isDateHeader(line) &&
-          !hasTimeRange(line) &&
-          !/not scheduled/i.test(line) &&
-          /[A-Za-z]{3,}/.test(line)
-        );
-
+        const titleLine = findBestTitleLine(block.lines);
         const timeLine = block.lines.find(line => hasTimeRange(line));
 
         if(!titleLine || !timeLine) return;
@@ -635,9 +730,7 @@ CA-Cameron Park
         events.push(event);
       });
 
-      events.sort((a,b) => {
-        return (a.date + a.startTime).localeCompare(b.date + b.startTime);
-      });
+      events.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
     }
 
     function isDateHeader(line){
@@ -678,6 +771,30 @@ CA-Cameron Park
       const d1 = new Date(y1, month - 1, day);
       const d2 = new Date(y1 + 1, month - 1, day);
       return Math.abs(d1 - today) <= Math.abs(d2 - today) ? y1 : y1 + 1;
+    }
+
+    function findBestTitleLine(lines){
+      const candidates = lines
+        .filter(line => !isDateHeader(line))
+        .filter(line => !hasTimeRange(line))
+        .filter(line => !/not scheduled/i.test(line))
+        .filter(line => /[A-Za-z]{3,}/.test(line))
+        .map(line => line.replace(/[›»>]+$/g, "").trim())
+        .filter(Boolean);
+
+      const strong = candidates.find(line => /\b[A-Z]{2}-[A-Za-z]/.test(line));
+      if(strong) return strong;
+
+      candidates.sort((a, b) => scoreTitle(b) - scoreTitle(a));
+      return candidates[0] || "";
+    }
+
+    function scoreTitle(line){
+      let score = 0;
+      if(/\b[A-Z]{2}-[A-Za-z]/.test(line)) score += 8;
+      if(/[A-Za-z]{4,}/.test(line)) score += 4;
+      if(line.length >= 6) score += 3;
+      return score;
     }
 
     function normalizeTitle(title){
@@ -745,8 +862,8 @@ CA-Cameron Park
       if(meridiem === "PM" && h < 12) h += 12;
       if(meridiem === "AM" && h === 12) h = 0;
 
-      if(!meridiem){
-        if(h >= 1 && h <= 6) h += 12;
+      if(!meridiem && h >= 1 && h <= 6){
+        h += 12;
       }
 
       return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -754,7 +871,7 @@ CA-Cameron Park
 
     function isSuspiciousTime(time){
       if(!time) return true;
-      const [h,m] = time.split(":").map(Number);
+      const [h, m] = time.split(":").map(Number);
       if(Number.isNaN(h) || Number.isNaN(m)) return true;
       if(h < 0 || h > 23) return true;
       if(m < 0 || m > 59) return true;
@@ -853,7 +970,7 @@ CA-Cameron Park
 
     function format12Hour(time24){
       if(!/^\d{2}:\d{2}$/.test(time24)) return time24 || "";
-      let [h,m] = time24.split(":").map(Number);
+      let [h, m] = time24.split(":").map(Number);
       const suffix = h >= 12 ? "PM" : "AM";
       h = h % 12 || 12;
       return `${h}:${String(m).padStart(2, "0")}${suffix}`;
@@ -881,8 +998,8 @@ CA-Cameron Park
     }
 
     function formatICSDateTime(dateStr, timeStr){
-      const [y,m,d] = dateStr.split("-");
-      const [hh,mm] = timeStr.split(":");
+      const [y, m, d] = dateStr.split("-");
+      const [hh, mm] = timeStr.split(":");
       return `${y}${m}${d}T${hh}${mm}00`;
     }
 
@@ -923,7 +1040,7 @@ CA-Cameron Park
         return;
       }
 
-      for(let i=0;i<events.length;i++){
+      for(let i = 0; i < events.length; i++){
         if(!validateEvent(events[i], i + 1)) return;
       }
 
