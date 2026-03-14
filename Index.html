@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schedule Scanner</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f2f2f7;
+      --card:#ffffff;
+      --text:#111111;
+      --muted:#6e6e73;
+      --primary:#007aff;
+      --secondary:#34c759;
+      --danger:#ff3b30;
+      --gray:#8e8e93;
+      --border:#e5e5ea;
+      --shadow:0 8px 24px rgba(0,0,0,.08);
+      --radius:16px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding:16px;
+    }
+
+    .container{
+      max-width:760px;
+      margin:0 auto;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+      margin-bottom:18px;
+    }
+
+    h1,h2,p{ margin-top:0; }
+
+    h1{
+      font-size:28px;
+      margin-bottom:8px;
+    }
+
+    h2{
+      font-size:20px;
+      margin-bottom:12px;
+    }
+
+    .subtext,.muted{
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .pill{
+      display:inline-block;
+      padding:5px 10px;
+      border-radius:999px;
+      background:#eef5ff;
+      color:var(--primary);
+      font-size:12px;
+      font-weight:700;
+      margin-bottom:10px;
+    }
+
+    button{
+      width:100%;
+      border:none;
+      border-radius:12px;
+      padding:14px 16px;
+      font-size:16px;
+      font-weight:600;
+      cursor:pointer;
+      margin-top:10px;
+    }
+
+    .btn-primary{ background:var(--primary); color:white; }
+    .btn-secondary{ background:var(--secondary); color:white; }
+    .btn-gray{ background:var(--gray); color:white; }
+    .btn-danger{ background:var(--danger); color:white; }
+
+    .status{
+      margin-top:12px;
+      min-height:20px;
+      color:var(--muted);
+      font-size:14px;
+      white-space:pre-wrap;
+    }
+
+    .event-card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px;
+      margin-bottom:12px;
+      background:#fafafa;
+    }
+
+    .event-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .event-number{
+      font-size:13px;
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    label{
+      display:block;
+      font-size:13px;
+      font-weight:600;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    input, select, textarea{
+      width:100%;
+      padding:12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      font-size:16px;
+      background:white;
+      margin-bottom:10px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .history-item{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      margin-bottom:10px;
+      background:#fafafa;
+    }
+
+    .history-actions{
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .history-actions button{
+      margin-top:0;
+      width:auto;
+      flex:1;
+      padding:10px 12px;
+      font-size:14px;
+    }
+
+    .empty{
+      color:var(--muted);
+      font-size:14px;
+      padding:6px 0;
+    }
+
+    @media (max-width:640px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="card">
+      <div class="pill">Schedule → Review → Calendar</div>
+      <h1>Schedule Scanner</h1>
+      <p class="subtext">
+        Upload a screenshot, review the detected events, then export verified entries to your calendar.
+      </p>
+
+      <button class="btn-primary" onclick="openFile()">Upload &amp; Scan Schedule</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none" />
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Raw OCR Text</h2>
+      <p class="muted">This shows exactly what the scanner read. You can edit it and re-analyze.</p>
+      <textarea id="rawTextBox" rows="8" placeholder="Scanned text will appear here..."></textarea>
+      <button class="btn-gray" onclick="reparseRawText()">Re-Analyze Text</button>
+    </div>
+
+    <div class="card">
+      <h2>Detected Events</h2>
+      <p class="muted">Review every event before export.</p>
+      <div id="events"></div>
+      <button class="btn-primary" onclick="confirmExport()">Export Verified Events to Apple Calendar</button>
+    </div>
+
+    <div class="card">
+      <h2>Scan History</h2>
+      <p class="muted">Saved on this device.</p>
+      <div id="history"></div>
+      <button class="btn-danger" onclick="clearHistory()">Clear History</button>
+    </div>
+
+  </div>
+
+  <script>
+    let events = [];
+
+    const dayOptions = [
+      { value: "Sun", label: "Sunday" },
+      { value: "Mon", label: "Monday" },
+      { value: "Tue", label: "Tuesday" },
+      { value: "Wed", label: "Wednesday" },
+      { value: "Thu", label: "Thursday" },
+      { value: "Fri", label: "Friday" },
+      { value: "Sat", label: "Saturday" }
+    ];
+
+    const byDayMap = {
+      Sun: "SU",
+      Mon: "MO",
+      Tue: "TU",
+      Wed: "WE",
+      Thu: "TH",
+      Fri: "FR",
+      Sat: "SA"
+    };
+
+    const monthMap = {
+      jan:1, january:1,
+      feb:2, february:2,
+      mar:3, march:3,
+      apr:4, april:4,
+      may:5,
+      jun:6, june:6,
+      jul:7, july:7,
+      aug:8, august:8,
+      sep:9, sept:9, september:9,
+      oct:10, october:10,
+      nov:11, november:11,
+      dec:12, december:12
+    };
+
+    function setStatus(message) {
+      document.getElementById("status").innerText = message || "";
+    }
+
+    function openFile() {
+      document.getElementById("imageInput").click();
+    }
+
+    document.getElementById("imageInput").addEventListener("change", async function () {
+      if (!this.files || !this.files[0]) return;
+      await scanUpload(this.files[0]);
+      this.value = "";
+    });
+
+    async function scanUpload(file) {
+      try {
+        setStatus("Reading image...");
+        const result = await Tesseract.recognize(file, "eng");
+        const text = result?.data?.text || "";
+        document.getElementById("rawTextBox").value = text;
+        processText(text);
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not analyze that image.");
+        alert("There was a problem reading the image.");
+      }
+    }
+
+    function reparseRawText() {
+      const text = document.getElementById("rawTextBox").value || "";
+      processText(text, false);
+    }
+
+    function processText(text, save = true) {
+      setStatus("Analyzing schedule...");
+      parseSchedule(text || "");
+      displayEvents();
+
+      if (events.length) {
+        if (save) saveHistory(events, text);
+        setStatus(`Detected ${events.length} event(s). Review them before exporting.`);
+      } else {
+        setStatus("No events were detected. Edit the Raw OCR Text and tap Re-Analyze Text.");
+      }
+    }
+
+    function parseSchedule(text) {
+      events = [];
+
+      const normalizedText = text
+        .replace(/\r/g, "\n")
+        .replace(/[|]/g, " ")
+        .replace(/[•]/g, " ")
+        .replace(/\t/g, " ")
+        .replace(/[ ]{2,}/g, " ");
+
+      const baseLines = normalizedText
+        .split("\n")
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      const lines = [];
+      for (let i = 0; i < baseLines.length; i++) {
+        lines.push(baseLines[i]);
+        if (i < baseLines.length - 1) {
+          lines.push((baseLines[i] + " " + baseLines[i + 1]).trim());
+        }
+      }
+
+      const candidates = [...new Set(lines)];
+
+      const dayPattern = /\b(mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday)\b/i;
+      const monthDatePattern = /\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\.?\s*(\d{1,2})(?:,\s*(\d{2,4}))?\b/i;
+      const slashDatePattern = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/;
+      const timeRangePattern = /(\d{1,2})(?::?(\d{2}))?\s*(AM|PM|am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::?(\d{2}))?\s*(AM|PM|am|pm)?/i;
+      const singleTimePattern = /\b(\d{1,2})(?::?(\d{2}))?\s*(AM|PM|am|pm)?\b/;
+
+      const unique = new Set();
+
+      for (const line of candidates) {
+        const dayMatch = line.match(dayPattern);
+        const monthDateMatch = line.match(monthDatePattern);
+        const slashDateMatch = line.match(slashDatePattern);
+        const rangeMatch = line.match(timeRangePattern);
+        const timeMatch = line.match(singleTimePattern);
+
+        if (!rangeMatch && !timeMatch) continue;
+        if (!dayMatch && !monthDateMatch && !slashDateMatch) continue;
+
+        let day = dayMatch ? normalizeDay(dayMatch[0]) : "";
+        let firstDate = "";
+
+        if (monthDateMatch) {
+          firstDate = normalizeMonthDate(monthDateMatch[1], monthDateMatch[2], monthDateMatch[3]);
+        } else if (slashDateMatch) {
+          firstDate = normalizeSlashDate(slashDateMatch[1], slashDateMatch[2], slashDateMatch[3]);
+        }
+
+        if (!day && firstDate) {
+          day = inferDayFromDate(firstDate);
+        }
+
+        let startTime = "";
+        let endTime = "";
+
+        if (rangeMatch) {
+          startTime = normalizeTime(rangeMatch[1], rangeMatch[2], rangeMatch[3], rangeMatch[6]);
+          endTime = normalizeTime(rangeMatch[4], rangeMatch[5], rangeMatch[6], rangeMatch[3]);
+        } else if (timeMatch) {
+          startTime = normalizeTime(timeMatch[1], timeMatch[2], timeMatch[3], null);
+          endTime = addOneHour(startTime);
+        }
+
+        const title = extractBestTitle(line);
+
+        if (!day || !startTime || !endTime || !title) continue;
+
+        const event = {
+          id: makeId(),
+          title,
+          day,
+          firstDate,
+          startTime,
+          endTime
+        };
+
+        const key = [event.title, event.day, event.firstDate, event.startTime, event.endTime].join("|");
+        if (unique.has(key)) continue;
+        unique.add(key);
+
+        events.push(event);
+      }
+    }
+
+    function extractBestTitle(line) {
+      let cleaned = line;
+
+      cleaned = cleaned
+        .replace(/\b(mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday)\b/ig, " ")
+        .replace(/\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\.?\s*\d{1,2}(?:,\s*\d{2,4})?\b/ig, " ")
+        .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/ig, " ")
+        .replace(/\b\d{1,2}(?::?\d{2})?\s*(AM|PM|am|pm)?\s*(?:-|–|to)\s*\d{1,2}(?::?\d{2})?\s*(AM|PM|am|pm)?\b/ig, " ")
+        .replace(/\b\d{1,2}(?::?\d{2})?\s*(AM|PM|am|pm)?\b/ig, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!cleaned) return "";
+
+      const chunks = cleaned
+        .split(/[-–:]/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .filter(s => /[A-Za-z]{2,}/.test(s));
+
+      if (chunks.length) {
+        return chunks.sort((a, b) => b.length - a.length)[0];
+      }
+
+      return cleaned;
+    }
+
+    function normalizeDay(value) {
+      const v = value.toLowerCase();
+      if (v.startsWith("sun")) return "Sun";
+      if (v.startsWith("mon")) return "Mon";
+      if (v.startsWith("tue")) return "Tue";
+      if (v.startsWith("wed")) return "Wed";
+      if (v.startsWith("thu")) return "Thu";
+      if (v.startsWith("fri")) return "Fri";
+      if (v.startsWith("sat")) return "Sat";
+      return "";
+    }
+
+    function normalizeMonthDate(monthText, dayText, yearText) {
+      const monthKey = monthText.toLowerCase().replace(".", "");
+      const month = monthMap[monthKey];
+      const day = parseInt(dayText, 10);
+      let year = yearText ? parseInt(yearText, 10) : new Date().getFullYear();
+
+      if (!month || !day) return "";
+      if (year < 100) year += 2000;
+
+      return `${year}-${pad(month)}-${pad(day)}`;
+    }
+
+    function normalizeSlashDate(monthText, dayText, yearText) {
+      const month = parseInt(monthText, 10);
+      const day = parseInt(dayText, 10);
+      let year = yearText ? parseInt(yearText, 10) : new Date().getFullYear();
+
+      if (!month || !day) return "";
+      if (year < 100) year += 2000;
+
+      return `${year}-${pad(month)}-${pad(day)}`;
+    }
+
+    function inferDayFromDate(isoDate) {
+      if (!isoDate) return "";
+      const d = new Date(isoDate + "T00:00:00");
+      const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      return names[d.getDay()] || "";
+    }
+
+    function normalizeTime(hourStr, minuteStr, ampm, fallbackAmpm) {
+      let hour = parseInt(hourStr, 10);
+      let minute = minuteStr ? parseInt(minuteStr, 10) : 0;
+      let marker = (ampm || fallbackAmpm || "").toUpperCase();
+
+      if (marker === "PM" && hour < 12) hour += 12;
+      if (marker === "AM" && hour === 12) hour = 0;
+
+      if (!marker) {
+        if (hour <= 7) hour += 12;
+      }
+
+      return `${pad(hour)}:${pad(minute)}`;
+    }
+
+    function addOneHour(time24) {
+      if (!/^\d{2}:\d{2}$/.test(time24)) return "";
+      const [h, m] = time24.split(":").map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      d.setTime(d.getTime() + 60 * 60 * 1000);
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function displayEvents() {
+      const container = document.getElementById("events");
+      container.innerHTML = "";
+
+      if (!events.length) {
+        container.innerHTML = '<div class="empty">No events detected yet.</div>';
+        return;
+      }
+
+      events.forEach((event, index) => {
+        const card = document.createElement("div");
+        card.className = "event-card";
+
+        card.innerHTML = `
+          <div class="event-header">
+            <div class="event-number">Event ${index + 1}</div>
+            <button class="btn-danger" style="width:auto;padding:8px 12px;font-size:13px;margin-top:0;" onclick="removeEvent(${index})">Remove</button>
+          </div>
+
+          <label>Title</label>
+          <input type="text" value="${escapeHtml(event.title)}" onchange="updateEvent(${index}, 'title', this.value)">
+
+          <div class="grid">
+            <div>
+              <label>Day</label>
+              <select onchange="updateEvent(${index}, 'day', this.value)">
+                <option value="">Select day</option>
+                ${dayOptions.map(opt => `<option value="${opt.value}" ${event.day === opt.value ? "selected" : ""}>${opt.label}</option>`).join("")}
+              </select>
+            </div>
+
+            <div>
+              <label>First Date (optional)</label>
+              <input type="date" value="${escapeHtml(event.firstDate || "")}" onchange="updateEvent(${index}, 'firstDate', this.value)">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label>Start Time</label>
+              <input type="time" value="${escapeHtml(event.startTime || "")}" onchange="updateEvent(${index}, 'startTime', this.value)">
+            </div>
+
+            <div>
+              <label>End Time</label>
+              <input type="time" value="${escapeHtml(event.endTime || "")}" onchange="updateEvent(${index}, 'endTime', this.value)">
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function updateEvent(index, field, value) {
+      if (!events[index]) return;
+      events[index][field] = value;
+    }
+
+    function removeEvent(index) {
+      events.splice(index, 1);
+      displayEvents();
+    }
+
+    function validateEvents() {
+      if (!events.length) {
+        alert("There are no events to export.");
+        return false;
+      }
+
+      for (let i = 0; i < events.length; i++) {
+        const e = events[i];
+
+        if (!e.title || !e.title.trim()) {
+          alert(`Event ${i + 1} is missing a title.`);
+          return false;
+        }
+        if (!e.day) {
+          alert(`Event ${i + 1} is missing a day.`);
+          return false;
+        }
+        if (!/^\d{2}:\d{2}$/.test(e.startTime || "")) {
+          alert(`Event ${i + 1} is missing a valid start time.`);
+          return false;
+        }
+        if (!/^\d{2}:\d{2}$/.test(e.endTime || "")) {
+          alert(`Event ${i + 1} is missing a valid end time.`);
+          return false;
+        }
+        if (e.endTime <= e.startTime) {
+          alert(`Event ${i + 1} has an end time that is not after the start time.`);
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function confirmExport() {
+      if (!validateEvents()) return;
+      exportToCalendar();
+    }
+
+    function exportToCalendar() {
+      let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Schedule Scanner//EN\r\nCALSCALE:GREGORIAN\r\n";
+
+      events.forEach(e => {
+        const byDay = byDayMap[e.day];
+        if (!byDay) return;
+
+        const dtStart = buildEventDateTime(e.firstDate, e.day, e.startTime);
+        const dtEnd = buildEventDateTime(e.firstDate, e.day, e.endTime);
+
+        ics += "BEGIN:VEVENT\r\n";
+        ics += "UID:" + makeId() + "@schedule-scanner\r\n";
+        ics += "SUMMARY:" + escapeICS(e.title) + "\r\n";
+        ics += "DTSTART:" + dtStart + "\r\n";
+        ics += "DTEND:" + dtEnd + "\r\n";
+        ics += "RRULE:FREQ=WEEKLY;BYDAY=" + byDay + "\r\n";
+        ics += "END:VEVENT\r\n";
+      });
+
+      ics += "END:VCALENDAR\r\n";
+
+      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "schedule.ics";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    function buildEventDateTime(firstDate, day, time24) {
+      let baseDate;
+
+      if (firstDate) {
+        baseDate = new Date(firstDate + "T00:00:00");
+      } else {
+        baseDate = nextOccurrenceOfDay(day);
+      }
+
+      const [hours, minutes] = time24.split(":").map(Number);
+      baseDate.setHours(hours, minutes, 0, 0);
+
+      return formatICSLocal(baseDate);
+    }
+
+    function nextOccurrenceOfDay(day) {
+      const dayIndexMap = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+      const today = new Date();
+      const target = dayIndexMap[day];
+      const result = new Date(today);
+      const diff = (target - today.getDay() + 7) % 7;
+      result.setDate(today.getDate() + diff);
+      result.setHours(0, 0, 0, 0);
+      return result;
+    }
+
+    function formatICSLocal(date) {
+      return (
+        date.getFullYear().toString() +
+        pad(date.getMonth() + 1) +
+        pad(date.getDate()) + "T" +
+        pad(date.getHours()) +
+        pad(date.getMinutes()) +
+        "00"
+      );
+    }
+
+    function saveHistory(currentEvents, rawText) {
+      if (!currentEvents.length) return;
+
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      history.unshift({
+        id: makeId(),
+        createdAt: new Date().toLocaleString(),
+        events: JSON.parse(JSON.stringify(currentEvents)),
+        rawText: rawText || ""
+      });
+
+      localStorage.setItem("scheduleHistory", JSON.stringify(history.slice(0, 20)));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      const container = document.getElementById("history");
+      container.innerHTML = "";
+
+      if (!history.length) {
+        container.innerHTML = '<div class="empty">No history yet.</div>';
+        return;
+      }
+
+      history.forEach((item, index) => {
+        const preview = item.events.map(e =>
+          [e.title, e.day, `${e.startTime}-${e.endTime}`].filter(Boolean).join(" • ")
+        ).join("<br>");
+
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = `
+          <strong>${escapeHtml(item.createdAt)}</strong>
+          <div class="muted" style="margin-top:6px;">${preview}</div>
+          <div class="history-actions">
+            <button class="btn-gray" onclick="loadHistoryItem(${index})">Load</button>
+            <button class="btn-primary" onclick="exportHistoryItem(${index})">Export</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function loadHistoryItem(index) {
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      if (!history[index]) return;
+      events = JSON.parse(JSON.stringify(history[index].events || []));
+      document.getElementById("rawTextBox").value = history[index].rawText || "";
+      displayEvents();
+      setStatus("Loaded scan from history.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function exportHistoryItem(index) {
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      if (!history[index]) return;
+      events = JSON.parse(JSON.stringify(history[index].events || []));
+      displayEvents();
+
+      if (!validateEvents()) return;
+      exportToCalendar();
+    }
+
+    function clearHistory() {
+      localStorage.removeItem("scheduleHistory");
+      renderHistory();
+      setStatus("History cleared.");
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function escapeICS(str) {
+      return String(str || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/;/g, "\\;")
+        .replace(/,/g, "\\,")
+        .replace(/\r?\n/g, "\\n");
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function makeId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "id-" + Math.random().toString(36).slice(2) + Date.now();
+    }
+
+    renderHistory();
+    displayEvents();
+  </script>
+</body>
+</html>
