@@ -1,1 +1,0 @@
-# Schedule-scanner-app
