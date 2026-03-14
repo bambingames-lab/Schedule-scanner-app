@@ -1,725 +1,1061 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Schedule Scanner</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <meta charset="utf-8">
+  <title>Shift Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-<style>
-body{
-font-family:-apple-system,BlinkMacSystemFont;
-background:#f5f5f7;
-margin:0;
-padding:20px;
-}
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --bg2:#eef7f8;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --primary:#0f9d92;
+      --primary-dark:#0a7f76;
+      --primary-soft:#ecfeff;
+      --danger:#ef4444;
+      --danger-soft:#fff1f2;
+      --warning:#b45309;
+      --shadow:0 10px 30px rgba(15,23,42,.08);
+      --radius:22px;
+    }
 
-.container{
-max-width:600px;
-margin:auto;
-}
+    *{box-sizing:border-box}
 
-.card{
-background:white;
-border-radius:12px;
-padding:20px;
-margin-bottom:20px;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);
-}
+    html,body{
+      margin:0;
+      padding:0;
+      background:linear-gradient(180deg,var(--bg2),var(--bg));
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;
+    }
 
-h1{
-font-size:24px;
-margin-bottom:10px;
-}
+    body{
+      padding:16px 14px 34px;
+    }
 
-button{
-background:#007AFF;
-color:white;
-border:none;
-padding:12px;
-border-radius:8px;
-width:100%;
-font-size:16px;
-margin-top:10px;
-}
+    .app{
+      max-width:760px;
+      margin:0 auto;
+    }
 
-button:hover{
-opacity:.9;
-}
+    .hero{
+      background:linear-gradient(135deg,#0f9d92,#20b5a8 55%,#4cc9f0);
+      color:#fff;
+      border-radius:28px;
+      padding:22px 18px;
+      box-shadow:var(--shadow);
+      margin-bottom:16px;
+    }
 
-button.secondary{
-background:#8E8E93;
-}
+    .hero h1{
+      margin:0 0 8px;
+      font-size:28px;
+      line-height:1.05;
+      letter-spacing:-.03em;
+      font-weight:800;
+    }
 
-button.danger{
-background:#FF3B30;
-}
+    .hero p{
+      margin:0;
+      line-height:1.45;
+      font-size:15px;
+      opacity:.96;
+    }
 
-.event{
-padding:12px;
-border:1px solid #eee;
-border-radius:12px;
-margin-bottom:12px;
-background:#fafafa;
-}
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.7);
+      margin-bottom:16px;
+    }
 
-.history-item{
-padding:10px;
-border-bottom:1px solid #eee;
-}
+    .title{
+      margin:0 0 8px;
+      font-size:19px;
+      font-weight:800;
+      letter-spacing:-.02em;
+    }
 
-input, textarea, select{
-width:100%;
-padding:12px;
-border:1px solid #ddd;
-border-radius:8px;
-font-size:16px;
-margin-bottom:10px;
-box-sizing:border-box;
-background:white;
-}
+    .note{
+      margin:0 0 14px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
+    }
 
-.status{
-color:#666;
-margin-top:10px;
-min-height:20px;
-}
+    .grid{
+      display:grid;
+      gap:10px;
+    }
 
-.warning{
-color:#b45309;
-font-size:13px;
-margin-top:4px;
-}
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
 
-.note{
-font-size:14px;
-color:#666;
-margin-bottom:10px;
-}
+    button,
+    .button-link{
+      appearance:none;
+      border:none;
+      outline:none;
+      text-decoration:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:14px 16px;
+      font-size:15px;
+      font-weight:800;
+      min-height:50px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      transition:transform .08s ease, opacity .2s ease, background .2s ease;
+    }
 
-.history-actions{
-display:flex;
-gap:8px;
-margin-top:10px;
-}
+    button:active,
+    .button-link:active{
+      transform:scale(.985);
+    }
 
-.history-actions button{
-width:auto;
-flex:1;
-margin-top:0;
-padding:10px;
-font-size:14px;
-}
+    .primary{
+      background:var(--primary);
+      color:white;
+      width:100%;
+    }
 
-.preview{
-width:100%;
-border-radius:12px;
-margin-top:12px;
-display:none;
-border:1px solid #ddd;
-}
+    .primary:hover{
+      background:var(--primary-dark);
+    }
 
-.empty{
-color:#666;
-font-size:14px;
-padding:6px 0;
-}
-</style>
+    .secondary{
+      background:#f8fafc;
+      color:#111827;
+      width:100%;
+      border:1px solid var(--line);
+    }
+
+    .ghost{
+      background:var(--primary-soft);
+      color:#0f766e;
+      border:1px solid #b8ece8;
+      width:100%;
+    }
+
+    .danger{
+      background:var(--danger-soft);
+      color:#b91c1c;
+      border:1px solid #fecdd3;
+      width:100%;
+    }
+
+    input, textarea, select{
+      width:100%;
+      background:#fff;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:13px 14px;
+      font-size:16px;
+      outline:none;
+    }
+
+    textarea{
+      resize:vertical;
+      min-height:130px;
+    }
+
+    input:focus, textarea:focus, select:focus{
+      border-color:#7dd3fc;
+      box-shadow:0 0 0 4px rgba(56,189,248,.15);
+    }
+
+    label{
+      display:block;
+      font-size:13px;
+      font-weight:700;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    .status{
+      margin-top:12px;
+      min-height:22px;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .status.good{color:#047857}
+    .status.warn{color:var(--warning)}
+    .status.bad{color:#b91c1c}
+
+    .preview-wrap{
+      display:none;
+      margin-top:14px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:#fafafa;
+    }
+
+    .preview{
+      display:block;
+      width:100%;
+      height:auto;
+    }
+
+    .event-list{
+      display:grid;
+      gap:14px;
+    }
+
+    .event-card{
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:14px;
+      background:linear-gradient(180deg,#fff,#fafafa);
+    }
+
+    .event-top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      margin-bottom:10px;
+    }
+
+    .event-name{
+      margin:0;
+      font-size:19px;
+      line-height:1.15;
+      font-weight:800;
+      letter-spacing:-.02em;
+    }
+
+    .pill{
+      white-space:nowrap;
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:12px;
+      font-weight:800;
+      color:#0f766e;
+      background:#ecfeff;
+      border:1px solid #b8ece8;
+    }
+
+    .meta{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .meta-box{
+      border:1px solid var(--line);
+      background:#f9fafb;
+      border-radius:14px;
+      padding:10px 12px;
+    }
+
+    .meta-label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      margin-bottom:4px;
+    }
+
+    .meta-value{
+      font-size:15px;
+      font-weight:800;
+    }
+
+    .editor{
+      display:grid;
+      gap:10px;
+      grid-template-columns:1fr;
+    }
+
+    .warning{
+      color:var(--warning);
+      font-size:13px;
+      font-weight:700;
+      margin-top:8px;
+    }
+
+    .empty{
+      color:var(--muted);
+      font-size:14px;
+      padding:4px 0;
+    }
+
+    .history-item{
+      padding:12px 0;
+      border-bottom:1px solid var(--line);
+    }
+
+    .history-item:last-child{
+      border-bottom:none;
+    }
+
+    .history-date{
+      font-size:13px;
+      font-weight:800;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+
+    .history-summary{
+      font-size:14px;
+      line-height:1.45;
+      margin-bottom:10px;
+    }
+
+    .tiny{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+      margin-top:10px;
+    }
+
+    @media (min-width:640px){
+      .two-col{
+        grid-template-columns:1fr 1fr;
+      }
+      .editor{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+  </style>
 </head>
-
 <body>
-
-<div class="container">
-
-<div class="card">
-<h1>Schedule Scanner</h1>
-<p class="note">Upload a screenshot, review the detected events, then export them to Apple Calendar.</p>
-
-<button onclick="openFile()">Upload &amp; Scan Schedule</button>
-<input type="file" id="imageInput" accept="image/*" style="display:none">
-
-<canvas id="previewCanvas" class="preview"></canvas>
-
-<div id="status" class="status"></div>
-</div>
-
-<div class="card">
-<h2>Raw OCR Text</h2>
-<p class="note">This is exactly what the scanner read. You can edit it and re-analyze.</p>
-<textarea id="rawTextBox" rows="8"></textarea>
-<button class="secondary" onclick="reparse()">Re-Analyze Text</button>
-</div>
-
-<div class="card">
-<h2>Detected Events</h2>
-<div id="events"></div>
-<button onclick="exportCalendar()">Export to Apple Calendar</button>
-</div>
-
-<div class="card">
-<h2>Scan History</h2>
-<div id="history"></div>
-<button class="danger" onclick="clearHistory()">Clear History</button>
-</div>
-
-</div>
-
-<script>
-let events=[]
-
-const dayMap={
-Sun:"SU",
-Mon:"MO",
-Tue:"TU",
-Wed:"WE",
-Thu:"TH",
-Fri:"FR",
-Sat:"SA"
-}
-
-const monthMap={
-jan:1,january:1,
-feb:2,february:2,
-mar:3,march:3,
-apr:4,april:4,
-may:5,
-jun:6,june:6,
-jul:7,july:7,
-aug:8,august:8,
-sep:9,sept:9,september:9,
-oct:10,october:10,
-nov:11,november:11,
-dec:12,december:12
-}
-
-function setStatus(message){
-document.getElementById("status").innerText=message||""
-}
-
-function openFile(){
-document.getElementById("imageInput").click()
-}
-
-document.getElementById("imageInput").addEventListener("change",async function(){
-const file=this.files[0]
-if(!file)return
-try{
-setStatus("Preparing image...")
-const processedCanvas=await preprocessImage(file)
-
-const preview=document.getElementById("previewCanvas")
-preview.width=processedCanvas.width
-preview.height=processedCanvas.height
-preview.getContext("2d").drawImage(processedCanvas,0,0)
-preview.style.display="block"
-
-setStatus("Reading image...")
-
-const result=await Tesseract.recognize(processedCanvas,"eng",{
-logger:m=>{
-if(m.status==="recognizing text"){
-setStatus("Reading image... "+Math.round((m.progress||0)*100)+"%")
-}
-}
-})
-
-const text=postProcessOCR(result?.data?.text||"")
-document.getElementById("rawTextBox").value=text
-processText(text,true)
-this.value=""
-}catch(err){
-console.error(err)
-setStatus("Could not analyze that image.")
-alert("There was a problem reading the image.")
-}
-})
-
-async function preprocessImage(file){
-const img=await loadImage(file)
-const scale=2
-
-const canvas=document.createElement("canvas")
-const ctx=canvas.getContext("2d")
-
-canvas.width=img.width*scale
-canvas.height=img.height*scale
-
-ctx.drawImage(img,0,0,canvas.width,canvas.height)
-
-const imageData=ctx.getImageData(0,0,canvas.width,canvas.height)
-const data=imageData.data
-
-for(let i=0;i<data.length;i+=4){
-const r=data[i]
-const g=data[i+1]
-const b=data[i+2]
-
-let gray=0.299*r+0.587*g+0.114*b
-gray=gray>160?255:0
-
-data[i]=gray
-data[i+1]=gray
-data[i+2]=gray
-}
-
-ctx.putImageData(imageData,0,0)
-return canvas
-}
-
-function loadImage(file){
-return new Promise((resolve,reject)=>{
-const img=new Image()
-const reader=new FileReader()
-
-reader.onload=e=>{
-img.onload=()=>resolve(img)
-img.onerror=reject
-img.src=e.target.result
-}
-
-reader.onerror=reject
-reader.readAsDataURL(file)
-})
-}
-
-function postProcessOCR(text){
-return text
-.replace(/B(?=\d)/g,"8")
-.replace(/(?<=\d)B/g,"8")
-.replace(/(?<=\d)\sB(?=\s|:|$)/g," 8")
-.replace(/S(?=\d)/g,"5")
-.replace(/(?<=\d)O(?=\d)/g,"0")
-.replace(/(?<=\d)l(?=\d)/g,"1")
-.replace(/(?<=\d)I(?=\d)/g,"1")
-}
-
-function reparse(){
-processText(document.getElementById("rawTextBox").value||"",false)
-}
-
-function processText(text,saveToHistory){
-setStatus("Analyzing schedule...")
-parse(text||"")
-displayEvents()
-
-if(events.length){
-if(saveToHistory){
-saveHistory(events,text)
-}
-setStatus(`Detected ${events.length} event(s). Review before exporting.`)
-}else{
-setStatus("No events detected. Edit the Raw OCR Text and tap Re-Analyze Text.")
-}
-}
-
-function parse(text){
-events=[]
-
-const normalizedText=text
-.replace(/\r/g,"\n")
-.replace(/[|]/g," ")
-.replace(/[•]/g," ")
-.replace(/\t/g," ")
-.replace(/[ ]{2,}/g," ")
-
-const baseLines=normalizedText
-.split("\n")
-.map(line=>line.trim())
-.filter(Boolean)
-
-const candidates=[]
-for(let i=0;i<baseLines.length;i++){
-candidates.push(baseLines[i])
-if(i<baseLines.length-1){
-candidates.push((baseLines[i]+" "+baseLines[i+1]).trim())
-}
-}
-
-const uniqueCandidates=[...new Set(candidates)]
-
-const dayPattern=/\b(sun|sunday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday)\b/i
-const monthDatePattern=/\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\.?\s*(\d{1,2})(?:,\s*(\d{2,4}))?\b/i
-const slashDatePattern=/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/
-const timeRangePattern=/(\d{1,2})(:\d{2})?\s?(AM|PM|am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(:\d{2})?\s?(AM|PM|am|pm)?/
-const singleTimePattern=/\b(\d{1,2})(:\d{2})?\s?(AM|PM|am|pm)?\b/
-
-const seen=new Set()
-
-uniqueCandidates.forEach(line=>{
-const dayMatch=line.match(dayPattern)
-const monthDateMatch=line.match(monthDatePattern)
-const slashDateMatch=line.match(slashDatePattern)
-const rangeMatch=line.match(timeRangePattern)
-const timeMatch=line.match(singleTimePattern)
-
-if(!rangeMatch&&!timeMatch)return
-if(!dayMatch&&!monthDateMatch&&!slashDateMatch)return
-
-let day=dayMatch?normalizeDay(dayMatch[0]):""
-let firstDate=""
-
-if(monthDateMatch){
-firstDate=normalizeMonthDate(monthDateMatch[1],monthDateMatch[2],monthDateMatch[3])
-}else if(slashDateMatch){
-firstDate=normalizeSlashDate(slashDateMatch[1],slashDateMatch[2],slashDateMatch[3])
-}
-
-if(!day&&firstDate){
-day=inferDayFromDate(firstDate)
-}
-
-let startTime=""
-let endTime=""
-
-if(rangeMatch){
-startTime=normalizeTime((rangeMatch[1]||"")+(rangeMatch[2]||"")+(rangeMatch[3]?" "+rangeMatch[3]:""))
-endTime=normalizeTime((rangeMatch[4]||"")+(rangeMatch[5]||"")+(rangeMatch[6]?" "+rangeMatch[6]:""))
-}else if(timeMatch){
-startTime=normalizeTime(timeMatch[0])
-endTime=addOneHour(startTime)
-}
-
-const title=extractBestTitle(line)
-
-if(!title||!day||!startTime||!endTime)return
-
-const event={
-id:makeId(),
-title,
-day,
-firstDate,
-startTime,
-endTime,
-suspicious:isSuspiciousTime(startTime)||isSuspiciousTime(endTime)
-}
-
-const key=[event.title,event.day,event.firstDate,event.startTime,event.endTime].join("|")
-if(seen.has(key))return
-seen.add(key)
-
-events.push(event)
-})
-}
-
-function extractBestTitle(line){
-let cleaned=line
-.replace(/\b(sun|sunday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday)\b/ig,"")
-.replace(/\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\.?\s*\d{1,2}(?:,\s*\d{2,4})?\b/ig,"")
-.replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/ig,"")
-.replace(/\d{1,2}(:\d{2})?\s?(AM|PM)?\s*(?:-|–|to)\s*\d{1,2}(:\d{2})?\s?(AM|PM)?/ig,"")
-.replace(/\d{1,2}(:\d{2})?\s?(AM|PM)?/ig,"")
-.replace(/\s+/g," ")
-.trim()
-
-const chunks=cleaned
-.split(/[-–:|]/)
-.map(s=>s.trim())
-.filter(Boolean)
-.filter(s=>/[A-Za-z]{2,}/.test(s))
-
-if(chunks.length){
-return chunks.sort((a,b)=>b.length-a.length)[0]
-}
-
-return cleaned
-}
-
-function normalizeDay(d){
-d=d.toLowerCase()
-
-if(d.startsWith("sun"))return"Sun"
-if(d.startsWith("mon"))return"Mon"
-if(d.startsWith("tue"))return"Tue"
-if(d.startsWith("wed"))return"Wed"
-if(d.startsWith("thu"))return"Thu"
-if(d.startsWith("fri"))return"Fri"
-if(d.startsWith("sat"))return"Sat"
-
-return""
-}
-
-function normalizeMonthDate(monthText,dayText,yearText){
-const monthKey=monthText.toLowerCase().replace(".","")
-const month=monthMap[monthKey]
-const day=parseInt(dayText,10)
-let year=yearText?parseInt(yearText,10):new Date().getFullYear()
-
-if(!month||!day)return""
-if(year<100)year+=2000
-
-return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`
-}
-
-function normalizeSlashDate(monthText,dayText,yearText){
-const month=parseInt(monthText,10)
-const day=parseInt(dayText,10)
-let year=yearText?parseInt(yearText,10):new Date().getFullYear()
-
-if(!month||!day)return""
-if(year<100)year+=2000
-
-return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`
-}
-
-function inferDayFromDate(firstDate){
-if(!firstDate)return""
-const d=new Date(firstDate+"T00:00:00")
-const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
-return days[d.getDay()]||""
-}
-
-function normalizeTime(t){
-t=t.toUpperCase().trim()
-
-let parts=t.replace("AM","").replace("PM","").split(":")
-let h=parseInt(parts[0],10)
-let m=parseInt(parts[1]||0,10)
-
-if(isNaN(h))return""
-
-if(t.includes("PM")&&h<12)h+=12
-if(t.includes("AM")&&h===12)h=0
-
-if(!t.includes("AM")&&!t.includes("PM")){
-if(h>=1&&h<=7)h+=12
-}
-
-return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")
-}
-
-function addOneHour(time24){
-if(!/^\d{2}:\d{2}$/.test(time24))return""
-const [h,m]=time24.split(":").map(Number)
-const d=new Date()
-d.setHours(h)
-d.setMinutes(m)
-d.setSeconds(0)
-d.setMilliseconds(0)
-d.setTime(d.getTime()+60*60*1000)
-return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")
-}
-
-function isSuspiciousTime(time){
-if(!time)return true
-const [h,m]=time.split(":").map(Number)
-if(isNaN(h)||isNaN(m))return true
-if(h<0||h>23)return true
-if(m<0||m>59)return true
-return false
-}
-
-function displayEvents(){
-const container=document.getElementById("events")
-container.innerHTML=""
-
-if(!events.length){
-container.innerHTML='<div class="empty">No events detected yet.</div>'
-return
-}
-
-events.forEach((e,i)=>{
-let div=document.createElement("div")
-div.className="event"
-
-div.innerHTML=`
-<label>Title</label>
-<input value="${escapeHtml(e.title)}" onchange="events[${i}].title=this.value">
-
-<label>Day</label>
-<select onchange="events[${i}].day=this.value">
-<option value="Sun" ${e.day==="Sun"?"selected":""}>Sun</option>
-<option value="Mon" ${e.day==="Mon"?"selected":""}>Mon</option>
-<option value="Tue" ${e.day==="Tue"?"selected":""}>Tue</option>
-<option value="Wed" ${e.day==="Wed"?"selected":""}>Wed</option>
-<option value="Thu" ${e.day==="Thu"?"selected":""}>Thu</option>
-<option value="Fri" ${e.day==="Fri"?"selected":""}>Fri</option>
-<option value="Sat" ${e.day==="Sat"?"selected":""}>Sat</option>
-</select>
-
-<label>First Date</label>
-<input type="date" value="${escapeHtml(e.firstDate||"")}" onchange="events[${i}].firstDate=this.value">
-
-<label>Start Time</label>
-<input type="time" value="${e.startTime}" onchange="events[${i}].startTime=this.value">
-
-<label>End Time</label>
-<input type="time" value="${e.endTime}" onchange="events[${i}].endTime=this.value">
-
-${e.suspicious?'<div class="warning">Check this time before exporting</div>':""}
-`
-
-container.appendChild(div)
-})
-}
-
-function exportCalendar(){
-if(!events.length){
-alert("There are no events to export.")
-return
-}
-
-for(let i=0;i<events.length;i++){
-const e=events[i]
-if(!e.title||!e.day||!e.startTime||!e.endTime){
-alert(`Event ${i+1} is missing information.`)
-return
-}
-}
-
-let ics="BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
-
-events.forEach(e=>{
-let start=buildEventDate(e.firstDate,e.day,e.startTime)
-let end=buildEventDate(e.firstDate,e.day,e.endTime)
-
-ics+="BEGIN:VEVENT\r\n"
-ics+="SUMMARY:"+escapeICS(e.title)+"\r\n"
-ics+="DTSTART:"+formatLocal(start)+"\r\n"
-ics+="DTEND:"+formatLocal(end)+"\r\n"
-ics+="RRULE:FREQ=WEEKLY;BYDAY="+dayMap[e.day]+"\r\n"
-ics+="END:VEVENT\r\n"
-})
-
-ics+="END:VCALENDAR"
-
-const blob=new Blob([ics],{type:"text/calendar"})
-const url=URL.createObjectURL(blob)
-
-const a=document.createElement("a")
-a.href=url
-a.download="schedule.ics"
-document.body.appendChild(a)
-a.click()
-a.remove()
-}
-
-function buildEventDate(firstDate,day,time){
-let baseDate
-
-if(firstDate){
-baseDate=new Date(firstDate+"T00:00:00")
-}else{
-baseDate=nextOccurrenceOfDay(day)
-}
-
-const [h,m]=time.split(":").map(Number)
-baseDate.setHours(h)
-baseDate.setMinutes(m)
-baseDate.setSeconds(0)
-baseDate.setMilliseconds(0)
-
-return baseDate
-}
-
-function nextOccurrenceOfDay(day){
-const dayIndexMap={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}
-const today=new Date()
-const target=dayIndexMap[day]
-const result=new Date(today)
-const diff=(target-today.getDay()+7)%7
-result.setDate(today.getDate()+diff)
-result.setHours(0,0,0,0)
-return result
-}
-
-function formatLocal(d){
-const year=d.getFullYear()
-const month=String(d.getMonth()+1).padStart(2,"0")
-const day=String(d.getDate()).padStart(2,"0")
-const hours=String(d.getHours()).padStart(2,"0")
-const minutes=String(d.getMinutes()).padStart(2,"0")
-return `${year}${month}${day}T${hours}${minutes}00`
-}
-
-function saveHistory(currentEvents,rawText){
-if(!currentEvents.length)return
-
-let history=JSON.parse(localStorage.getItem("scheduleHistory")||"[]")
-
-history.unshift({
-date:new Date().toLocaleString(),
-events:JSON.parse(JSON.stringify(currentEvents)),
-rawText:rawText||""
-})
-
-localStorage.setItem("scheduleHistory",JSON.stringify(history.slice(0,20)))
-renderHistory()
-}
-
-function renderHistory(){
-let history=JSON.parse(localStorage.getItem("scheduleHistory")||"[]")
-const container=document.getElementById("history")
-container.innerHTML=""
-
-if(!history.length){
-container.innerHTML='<div class="empty">No history yet.</div>'
-return
-}
-
-history.forEach((item,index)=>{
-let div=document.createElement("div")
-div.className="history-item"
-
-div.innerHTML=`
-<b>${escapeHtml(item.date)}</b><br>
-${item.events.map(e=>[e.title,e.day,e.firstDate||"",e.startTime&&e.endTime?`${e.startTime}-${e.endTime}`:""].filter(Boolean).join(" • ")).join("<br>")}
-<div class="history-actions">
-<button class="secondary" onclick="loadHistoryItem(${index})">Load</button>
-<button onclick="exportHistoryItem(${index})">Export</button>
-</div>
-`
-
-container.appendChild(div)
-})
-}
-
-function loadHistoryItem(index){
-let history=JSON.parse(localStorage.getItem("scheduleHistory")||"[]")
-if(!history[index])return
-events=JSON.parse(JSON.stringify(history[index].events||[]))
-document.getElementById("rawTextBox").value=history[index].rawText||""
-displayEvents()
-setStatus("Loaded scan from history.")
-window.scrollTo({top:0,behavior:"smooth"})
-}
-
-function exportHistoryItem(index){
-let history=JSON.parse(localStorage.getItem("scheduleHistory")||"[]")
-if(!history[index])return
-events=JSON.parse(JSON.stringify(history[index].events||[]))
-displayEvents()
-exportCalendar()
-}
-
-function clearHistory(){
-localStorage.removeItem("scheduleHistory")
-renderHistory()
-setStatus("History cleared.")
-}
-
-function escapeHtml(str){
-return String(str||"")
-.replace(/&/g,"&amp;")
-.replace(/"/g,"&quot;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;")
-}
-
-function escapeICS(str){
-return String(str||"")
-.replace(/\\/g,"\\\\")
-.replace(/,/g,"\\,")
-.replace(/;/g,"\\;")
-.replace(/\n/g,"\\n")
-}
-
-function makeId(){
-if(window.crypto&&crypto.randomUUID)return crypto.randomUUID()
-return "id-"+Math.random().toString(36).slice(2)+Date.now()
-}
-
-renderHistory()
-displayEvents()
-</script>
-
+  <div class="app">
+    <div class="hero">
+      <h1>Shift Calendar</h1>
+      <p>Upload a shift screenshot, review detected schedule items, then tap once to add each shift or your full schedule to Calendar.</p>
+    </div>
+
+    <div class="card">
+      <h2 class="title">1. Upload Schedule</h2>
+      <p class="note">Designed for screenshots like Shiftlab schedules with date headers, location names, and time ranges.</p>
+
+      <div class="grid two-col">
+        <button class="primary" onclick="openFile()">Upload & Scan Screenshot</button>
+        <button class="secondary" onclick="loadDemo()">Load Demo Data</button>
+      </div>
+
+      <input type="file" id="imageInput" accept="image/*" style="display:none">
+
+      <div id="previewWrap" class="preview-wrap">
+        <canvas id="previewCanvas" class="preview"></canvas>
+      </div>
+
+      <div id="status" class="status"></div>
+      <div class="tiny">This works on GitHub Pages because everything runs in the browser.</div>
+    </div>
+
+    <div class="card">
+      <h2 class="title">2. OCR Text</h2>
+      <p class="note">Edit anything the scanner read incorrectly, then tap re-analyze.</p>
+      <textarea id="rawTextBox" placeholder="Detected text will appear here..."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="secondary" onclick="reparse()">Re-Analyze Text</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="title">3. Detected Shifts</h2>
+      <p class="note">Each shift becomes a single calendar event with the actual date, not a repeating weekly event.</p>
+
+      <div class="grid two-col" style="margin-bottom:12px">
+        <button class="primary" onclick="downloadAllICS()">Add All to Calendar</button>
+        <button class="ghost" onclick="copySummary()">Copy Summary</button>
+      </div>
+
+      <div id="events" class="event-list"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="title">Recent Scans</h2>
+      <p class="note">Saved locally on your device.</p>
+      <div id="history"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="danger" onclick="clearHistory()">Clear History</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let events = [];
+
+    const monthMap = {
+      jan:1, january:1,
+      feb:2, february:2,
+      mar:3, march:3,
+      apr:4, april:4,
+      may:5,
+      jun:6, june:6,
+      jul:7, july:7,
+      aug:8, august:8,
+      sep:9, sept:9, september:9,
+      oct:10, october:10,
+      nov:11, november:11,
+      dec:12, december:12
+    };
+
+    const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    function setStatus(message, type=""){
+      const el = document.getElementById("status");
+      el.className = "status" + (type ? " " + type : "");
+      el.textContent = message || "";
+    }
+
+    function openFile(){
+      document.getElementById("imageInput").click();
+    }
+
+    document.getElementById("imageInput").addEventListener("change", async function(){
+      const file = this.files[0];
+      if(!file) return;
+
+      try{
+        setStatus("Preparing screenshot...", "warn");
+        const processedCanvas = await preprocessImage(file);
+
+        const previewWrap = document.getElementById("previewWrap");
+        const previewCanvas = document.getElementById("previewCanvas");
+        previewCanvas.width = processedCanvas.width;
+        previewCanvas.height = processedCanvas.height;
+        previewCanvas.getContext("2d").drawImage(processedCanvas, 0, 0);
+        previewWrap.style.display = "block";
+
+        setStatus("Reading screenshot...", "warn");
+
+        const result = await Tesseract.recognize(processedCanvas, "eng", {
+          logger: m => {
+            if(m.status === "recognizing text"){
+              setStatus("Reading screenshot... " + Math.round((m.progress || 0) * 100) + "%", "warn");
+            }
+          }
+        });
+
+        const text = postProcessOCR(result?.data?.text || "");
+        document.getElementById("rawTextBox").value = text;
+        processText(text, true);
+        this.value = "";
+      }catch(err){
+        console.error(err);
+        setStatus("Could not analyze that image.", "bad");
+        alert("There was a problem reading the image.");
+      }
+    });
+
+    async function preprocessImage(file){
+      const img = await loadImage(file);
+
+      const scale = img.width < 1400 ? 2.2 : 1.8;
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for(let i=0;i<data.length;i+=4){
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+
+        let gray = 0.299*r + 0.587*g + 0.114*b;
+        gray = gray > 188 ? 255 : gray < 120 ? 0 : 235;
+
+        data[i] = gray;
+        data[i+1] = gray;
+        data[i+2] = gray;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+
+    function loadImage(file){
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = e => {
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function postProcessOCR(text){
+      return String(text || "")
+        .replace(/\r/g, "\n")
+        .replace(/[|]/g, " ")
+        .replace(/[•●]/g, " ")
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .replace(/–/g, "-")
+        .replace(/—/g, "-")
+        .replace(/([0-9])O(?=[0-9])/g, "$10")
+        .replace(/(?<=\d)[Il](?=\d)/g, "1")
+        .replace(/\bB(?=\d)/g, "8")
+        .replace(/(?<=\d)B(?=\d|\b)/g, "8")
+        .replace(/(?<=\d)S(?=\d|\b)/g, "5")
+        .replace(/\bCA\s+([A-Za-z])/g, "CA-$1")
+        .replace(/\bNot\s+Schedu1ed\b/gi, "Not Scheduled")
+        .replace(/\bSchedu1ed\b/gi, "Scheduled")
+        .replace(/[ ]{2,}/g, " ");
+    }
+
+    function loadDemo(){
+      const demo = `Mar 23 Mon
+CA-Folsom
+9:30AM - 4:00PM
+
+Mar 24 Tue
+Not Scheduled
+
+Mar 25 Wed
+CA-Cameron Park
+8:30AM - 4:00PM
+
+Mar 26 Thu
+CA-Cameron Park
+8:30AM - 4:00PM
+
+Mar 27 Fri
+CA-Cameron Park
+1:30PM - 7:15PM`;
+      document.getElementById("rawTextBox").value = demo;
+      processText(demo, false);
+    }
+
+    function reparse(){
+      processText(document.getElementById("rawTextBox").value || "", false);
+    }
+
+    function processText(text, saveToHistory){
+      setStatus("Analyzing schedule...", "warn");
+      parseSchedule(text || "");
+      renderEvents();
+
+      if(events.length){
+        if(saveToHistory){
+          saveHistory(events, text);
+        }
+        setStatus(`Detected ${events.length} shift${events.length === 1 ? "" : "s"}.`, "good");
+      }else{
+        setStatus("No shifts detected. Edit the OCR text and tap Re-Analyze Text.", "bad");
+      }
+    }
+
+    function parseSchedule(text){
+      events = [];
+
+      const yearBase = new Date().getFullYear();
+
+      const lines = String(text || "")
+        .split("\n")
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => line.replace(/\s+/g, " "));
+
+      const blocks = [];
+      let current = null;
+
+      for(const line of lines){
+        if(isDateHeader(line)){
+          if(current) blocks.push(current);
+          current = { dateLine: line, lines: [line] };
+        }else if(current){
+          current.lines.push(line);
+        }
+      }
+
+      if(current) blocks.push(current);
+
+      const seen = new Set();
+
+      blocks.forEach(block => {
+        const dateInfo = parseDateHeader(block.dateLine, yearBase);
+        if(!dateInfo) return;
+
+        const joined = block.lines.join(" | ");
+        if(/not scheduled/i.test(joined)) return;
+
+        const titleLine = block.lines.find(line =>
+          !isDateHeader(line) &&
+          !hasTimeRange(line) &&
+          !/not scheduled/i.test(line) &&
+          /[A-Za-z]{3,}/.test(line)
+        );
+
+        const timeLine = block.lines.find(line => hasTimeRange(line));
+
+        if(!titleLine || !timeLine) return;
+
+        const times = parseTimeRange(timeLine);
+        if(!times) return;
+
+        const event = {
+          id: makeId(),
+          title: normalizeTitle(titleLine),
+          date: dateInfo.isoDate,
+          day: dateInfo.dayName,
+          startTime: times.start24,
+          endTime: times.end24,
+          suspicious: isSuspiciousTime(times.start24) || isSuspiciousTime(times.end24)
+        };
+
+        const key = [event.title, event.date, event.startTime, event.endTime].join("|");
+        if(seen.has(key)) return;
+        seen.add(key);
+
+        events.push(event);
+      });
+
+      events.sort((a,b) => {
+        return (a.date + a.startTime).localeCompare(b.date + b.startTime);
+      });
+    }
+
+    function isDateHeader(line){
+      return /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\s+(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i.test(line);
+    }
+
+    function parseDateHeader(line, fallbackYear){
+      const m = line.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\s+(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i);
+      if(!m) return null;
+
+      const month = monthMap[m[1].toLowerCase().replace(".","")];
+      const dayNum = parseInt(m[2], 10);
+      const dayName = normalizeDay(m[3]);
+
+      if(!month || !dayNum || !dayName) return null;
+
+      const year = inferClosestYear(month, dayNum, fallbackYear);
+      const isoDate = `${year}-${String(month).padStart(2,"0")}-${String(dayNum).padStart(2,"0")}`;
+
+      return { isoDate, dayName };
+    }
+
+    function normalizeDay(d){
+      d = String(d || "").toLowerCase();
+      if(d.startsWith("sun")) return "Sun";
+      if(d.startsWith("mon")) return "Mon";
+      if(d.startsWith("tue")) return "Tue";
+      if(d.startsWith("wed")) return "Wed";
+      if(d.startsWith("thu")) return "Thu";
+      if(d.startsWith("fri")) return "Fri";
+      if(d.startsWith("sat")) return "Sat";
+      return "";
+    }
+
+    function inferClosestYear(month, day, fallbackYear){
+      const today = new Date();
+      const y1 = fallbackYear || today.getFullYear();
+      const d1 = new Date(y1, month - 1, day);
+      const d2 = new Date(y1 + 1, month - 1, day);
+      return Math.abs(d1 - today) <= Math.abs(d2 - today) ? y1 : y1 + 1;
+    }
+
+    function normalizeTitle(title){
+      return String(title || "")
+        .replace(/\s+/g, " ")
+        .replace(/\bca-/g, "CA-")
+        .replace(/\bCa-/g, "CA-")
+        .trim();
+    }
+
+    function hasTimeRange(line){
+      return /(\d{1,2})(:\d{2})?\s?(AM|PM)?\s*[-]\s*(\d{1,2})(:\d{2})?\s?(AM|PM)?/i.test(line);
+    }
+
+    function parseTimeRange(line){
+      const m = String(line || "").match(/(\d{1,2})(:\d{2})?\s?(AM|PM)?\s*[-]\s*(\d{1,2})(:\d{2})?\s?(AM|PM)?/i);
+      if(!m) return null;
+
+      let startRaw = `${m[1]}${m[2] || ""}${m[3] ? " " + m[3] : ""}`;
+      let endRaw = `${m[4]}${m[5] || ""}${m[6] ? " " + m[6] : ""}`;
+
+      if(m[3] && !m[6]){
+        endRaw += " " + m[3];
+      }
+
+      if(!m[3] && m[6]){
+        endRaw = `${m[4]}${m[5] || ""} ${m[6]}`;
+        startRaw += " " + guessStartMeridiem(parseInt(m[1], 10), parseInt(m[4], 10), m[6].toUpperCase());
+      }
+
+      const start24 = normalizeTime(startRaw);
+      const end24 = normalizeTime(endRaw);
+
+      if(!start24 || !end24) return null;
+
+      return { start24, end24 };
+    }
+
+    function guessStartMeridiem(startHour, endHour, endMeridiem){
+      if(endMeridiem === "PM"){
+        return startHour <= endHour ? "AM" : "PM";
+      }
+      return "AM";
+    }
+
+    function normalizeTime(t){
+      t = String(t || "").toUpperCase().trim().replace(/\s+/g, "");
+      const meridiem = t.includes("AM") ? "AM" : t.includes("PM") ? "PM" : "";
+      const raw = t.replace("AM", "").replace("PM", "");
+
+      let h = 0;
+      let m = 0;
+
+      if(raw.includes(":")){
+        const parts = raw.split(":");
+        h = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10);
+      }else{
+        h = parseInt(raw, 10);
+        m = 0;
+      }
+
+      if(Number.isNaN(h) || Number.isNaN(m)) return "";
+
+      if(meridiem === "PM" && h < 12) h += 12;
+      if(meridiem === "AM" && h === 12) h = 0;
+
+      if(!meridiem){
+        if(h >= 1 && h <= 6) h += 12;
+      }
+
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+
+    function isSuspiciousTime(time){
+      if(!time) return true;
+      const [h,m] = time.split(":").map(Number);
+      if(Number.isNaN(h) || Number.isNaN(m)) return true;
+      if(h < 0 || h > 23) return true;
+      if(m < 0 || m > 59) return true;
+      return false;
+    }
+
+    function renderEvents(){
+      const container = document.getElementById("events");
+      container.innerHTML = "";
+
+      if(!events.length){
+        container.innerHTML = '<div class="empty">No events detected yet.</div>';
+        return;
+      }
+
+      events.forEach((e, i) => {
+        const displayDate = prettyDate(e.date);
+        const displayTime = `${format12Hour(e.startTime)} - ${format12Hour(e.endTime)}`;
+
+        const card = document.createElement("div");
+        card.className = "event-card";
+        card.innerHTML = `
+          <div class="event-top">
+            <div>
+              <h3 class="event-name">${escapeHtml(e.title)}</h3>
+            </div>
+            <div class="pill">${escapeHtml(e.day)}</div>
+          </div>
+
+          <div class="meta">
+            <div class="meta-box">
+              <div class="meta-label">Date</div>
+              <div class="meta-value">${escapeHtml(displayDate)}</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Time</div>
+              <div class="meta-value">${escapeHtml(displayTime)}</div>
+            </div>
+          </div>
+
+          <div class="editor">
+            <div>
+              <label>Title</label>
+              <input value="${escapeHtml(e.title)}" onchange="events[${i}].title=this.value.trim(); renderEvents()">
+            </div>
+
+            <div>
+              <label>Date</label>
+              <input type="date" value="${escapeHtml(e.date)}" onchange="updateEventDate(${i}, this.value)">
+            </div>
+
+            <div>
+              <label>Start Time</label>
+              <input type="time" value="${escapeHtml(e.startTime)}" onchange="events[${i}].startTime=this.value; renderEvents()">
+            </div>
+
+            <div>
+              <label>End Time</label>
+              <input type="time" value="${escapeHtml(e.endTime)}" onchange="events[${i}].endTime=this.value; renderEvents()">
+            </div>
+          </div>
+
+          ${e.suspicious ? '<div class="warning">Check this time before exporting.</div>' : ''}
+
+          <div class="grid two-col" style="margin-top:12px">
+            <button class="primary" onclick="downloadSingleICS(${i})">Add This Shift</button>
+            <button class="secondary" onclick="removeEvent('${e.id}')">Remove</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateEventDate(index, value){
+      events[index].date = value;
+      const d = new Date(value + "T00:00:00");
+      events[index].day = dayNames[d.getDay()] || events[index].day;
+      renderEvents();
+    }
+
+    function removeEvent(id){
+      events = events.filter(e => e.id !== id);
+      renderEvents();
+      setStatus("Shift removed.", "warn");
+    }
+
+    function prettyDate(isoDate){
+      const d = new Date(isoDate + "T00:00:00");
+      return d.toLocaleDateString(undefined, {
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      });
+    }
+
+    function format12Hour(time24){
+      if(!/^\d{2}:\d{2}$/.test(time24)) return time24 || "";
+      let [h,m] = time24.split(":").map(Number);
+      const suffix = h >= 12 ? "PM" : "AM";
+      h = h % 12 || 12;
+      return `${h}:${String(m).padStart(2, "0")}${suffix}`;
+    }
+
+    function buildICS(list){
+      let ics = "BEGIN:VCALENDAR\r\n";
+      ics += "VERSION:2.0\r\n";
+      ics += "PRODID:-//Shift Calendar//EN\r\n";
+      ics += "CALSCALE:GREGORIAN\r\n";
+      ics += "METHOD:PUBLISH\r\n";
+
+      list.forEach(e => {
+        ics += "BEGIN:VEVENT\r\n";
+        ics += "UID:" + escapeICS(e.id || makeId()) + "\r\n";
+        ics += "DTSTAMP:" + formatUTC(new Date()) + "\r\n";
+        ics += "SUMMARY:" + escapeICS(e.title) + "\r\n";
+        ics += "DTSTART:" + formatICSDateTime(e.date, e.startTime) + "\r\n";
+        ics += "DTEND:" + formatICSDateTime(e.date, e.endTime) + "\r\n";
+        ics += "END:VEVENT\r\n";
+      });
+
+      ics += "END:VCALENDAR\r\n";
+      return ics;
+    }
+
+    function formatICSDateTime(dateStr, timeStr){
+      const [y,m,d] = dateStr.split("-");
+      const [hh,mm] = timeStr.split(":");
+      return `${y}${m}${d}T${hh}${mm}00`;
+    }
+
+    function formatUTC(d){
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const mm = String(d.getUTCMinutes()).padStart(2, "0");
+      const ss = String(d.getUTCSeconds()).padStart(2, "0");
+      return `${y}${m}${day}T${hh}${mm}${ss}Z`;
+    }
+
+    function downloadBlob(text, filename){
+      const blob = new Blob([text], { type:"text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function downloadSingleICS(index){
+      const e = events[index];
+      if(!e || !validateEvent(e, index + 1)) return;
+      downloadBlob(buildICS([e]), safeFileName(e.title + "-" + e.date) + ".ics");
+      setStatus("Calendar file downloaded for that shift.", "good");
+    }
+
+    function downloadAllICS(){
+      if(!events.length){
+        alert("There are no events to export.");
+        return;
+      }
+
+      for(let i=0;i<events.length;i++){
+        if(!validateEvent(events[i], i + 1)) return;
+      }
+
+      downloadBlob(buildICS(events), "schedule.ics");
+      setStatus("Calendar file downloaded.", "good");
+    }
+
+    function validateEvent(e, number){
+      if(!e.title || !e.date || !e.startTime || !e.endTime){
+        alert(`Shift ${number} is missing information.`);
+        return false;
+      }
+      return true;
+    }
+
+    function copySummary(){
+      if(!events.length){
+        alert("No shifts to copy.");
+        return;
+      }
+
+      const text = events
+        .map(e => `${prettyDate(e.date)} • ${e.title} • ${format12Hour(e.startTime)} - ${format12Hour(e.endTime)}`)
+        .join("\n");
+
+      navigator.clipboard.writeText(text)
+        .then(() => setStatus("Shift summary copied.", "good"))
+        .catch(() => setStatus("Could not copy summary.", "bad"));
+    }
+
+    function saveHistory(currentEvents, rawText){
+      if(!currentEvents.length) return;
+
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+
+      history.unshift({
+        date: new Date().toLocaleString(),
+        events: JSON.parse(JSON.stringify(currentEvents)),
+        rawText: rawText || ""
+      });
+
+      localStorage.setItem("scheduleHistory", JSON.stringify(history.slice(0, 20)));
+      renderHistory();
+    }
+
+    function renderHistory(){
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      const container = document.getElementById("history");
+      container.innerHTML = "";
+
+      if(!history.length){
+        container.innerHTML = '<div class="empty">No history yet.</div>';
+        return;
+      }
+
+      history.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+
+        div.innerHTML = `
+          <div class="history-date">${escapeHtml(item.date)}</div>
+          <div class="history-summary">
+            ${(item.events || []).map(e =>
+              `${escapeHtml(prettyDate(e.date))} • ${escapeHtml(e.title)} • ${escapeHtml(format12Hour(e.startTime))}-${escapeHtml(format12Hour(e.endTime))}`
+            ).join("<br>")}
+          </div>
+          <div class="grid two-col">
+            <button class="secondary" onclick="loadHistoryItem(${index})">Load</button>
+            <button class="ghost" onclick="exportHistoryItem(${index})">Export</button>
+          </div>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    function loadHistoryItem(index){
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      if(!history[index]) return;
+
+      events = JSON.parse(JSON.stringify(history[index].events || []));
+      document.getElementById("rawTextBox").value = history[index].rawText || "";
+      renderEvents();
+      setStatus("Loaded scan from history.", "good");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function exportHistoryItem(index){
+      const history = JSON.parse(localStorage.getItem("scheduleHistory") || "[]");
+      if(!history[index]) return;
+
+      events = JSON.parse(JSON.stringify(history[index].events || []));
+      renderEvents();
+      downloadAllICS();
+    }
+
+    function clearHistory(){
+      localStorage.removeItem("scheduleHistory");
+      renderHistory();
+      setStatus("History cleared.", "warn");
+    }
+
+    function escapeHtml(str){
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function escapeICS(str){
+      return String(str || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/,/g, "\\,")
+        .replace(/;/g, "\\;")
+        .replace(/\n/g, "\\n");
+    }
+
+    function safeFileName(str){
+      return String(str || "schedule")
+        .replace(/[^\w\-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+    }
+
+    function makeId(){
+      if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "id-" + Math.random().toString(36).slice(2) + Date.now();
+    }
+
+    renderHistory();
+    renderEvents();
+  </script>
 </body>
 </html>
